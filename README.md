@@ -30,6 +30,7 @@ A comprehensive B2B e-procurement and e-catalogue management platform built with
 
 ## 📦 Installation
 
+### Option 1: Local Setup
 1. **Clone repo and enter folder:**
    ```bash
    git clone https://github.com/reno3788/ecatalogue.git
@@ -60,6 +61,40 @@ A comprehensive B2B e-procurement and e-catalogue management platform built with
    # in another terminal
    php artisan serve
    ```
+
+### Option 2: Docker (Laravel Sail)
+This project leverages Laravel Sail for simple container management.
+
+1. **Install composer packages (via Docker if local php isn't present):**
+   ```bash
+   docker run --rm \
+       -u "$(id -u):$(id -g)" \
+       -v "$(pwd):/var/www/html" \
+       -w /var/www/html \
+       laravelsail/php85-composer:latest \
+       composer install --ignore-platform-reqs
+   ```
+
+2. **Start Docker Containers:**
+   Copy the env file and start the server.
+   ```bash
+   cp .env.example .env
+   ./vendor/bin/sail up -d
+   ```
+
+3. **Generate keys and provision database:**
+   ```bash
+   ./vendor/bin/sail artisan key:generate
+   ./vendor/bin/sail artisan migrate --seed
+   ```
+
+4. **Build and start UI compiler:**
+   ```bash
+   ./vendor/bin/sail npm install
+   ./vendor/bin/sail npm run dev
+   ```
+
+Your application is now accessible at [http://localhost](http://localhost).
 
 ## 🔒 License
 
