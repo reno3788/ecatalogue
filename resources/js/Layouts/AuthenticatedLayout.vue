@@ -13,9 +13,18 @@ import AdminSidebar from '@/Components/AdminSidebar.vue';
 const showingNavigationDropdown = ref(false);
 
 const page = usePage();
-const isAdmin = computed(() => page.props.auth.roles && page.props.auth.roles.includes('admin'));
-const isSupplierAdmin = computed(() => page.props.auth.roles && page.props.auth.roles.includes('supplier_admin'));
-const hasSidebar = computed(() => isAdmin.value || isSupplierAdmin.value);
+
+const isAdmin = computed(() => page.props.auth?.roles?.includes('admin'));
+const isSupplier = computed(() => {
+    const supplierRoles = ['supplier_admin', 'supplier_processor', 'supplier_approver'];
+    return page.props.auth?.roles?.some(r => supplierRoles.includes(r));
+});
+
+const hasSidebar = computed(() => isAdmin.value || isSupplier.value);
+const canAccessCart = computed(() => {
+    // Only allow non-admin, non-supplier users (aka Buyers) to access cart
+    return !isAdmin.value && !isSupplier.value;
+});
 </script>
 
 <template>
@@ -60,7 +69,7 @@ const hasSidebar = computed(() => isAdmin.value || isSupplierAdmin.value);
                                             E-Catalogue
                                         </NavLink>
                                         <NavLink
-                                            v-if="!hasSidebar"
+                                            v-if="!hasSidebar && canAccessCart"
                                             :href="route('cart.index')"
                                             :active="route().current('cart.*')"
                                         >
@@ -178,14 +187,15 @@ const hasSidebar = computed(() => isAdmin.value || isSupplierAdmin.value);
                                     E-Catalogue
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink
+                                    v-if="canAccessCart"
                                     :href="route('cart.index')"
                                     :active="route().current('cart.*')"
                                 >
                                     Cart
                                 </ResponsiveNavLink>
                                 <ResponsiveNavLink
-                                    v-if="$page.props.auth.roles && ($page.props.auth.roles.includes('admin') || $page.props.auth.roles.includes('supplier_admin'))"
-                                    :href="$page.props.auth.roles.includes('admin') ? route('admin.dashboard') : route('admin.client-price-lists.index')"
+                                    v-if="hasSidebar"
+                                    :href="isAdmin ? route('admin.dashboard') : route('admin.orders.index')"
                                     :active="route().current('admin.*')"
                                 >
                                     Admin Panel

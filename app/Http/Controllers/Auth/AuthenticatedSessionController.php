@@ -34,7 +34,8 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
-        if ($user && $user->hasRole('admin')) {
+        $supplierRoles = ['supplier_admin', 'supplier_processor', 'supplier_approver'];
+        if ($user && ($user->hasRole('admin') || $user->hasAnyRole($supplierRoles))) {
             return redirect()->intended(route('admin.dashboard', absolute: false));
         }
 

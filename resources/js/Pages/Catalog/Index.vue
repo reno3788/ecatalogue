@@ -15,6 +15,10 @@ const formatCurrency = (val) => {
         return `${currency} ${Number(val).toFixed(2)}`;
     }
 };
+const canAddToCart = computed(() => {
+    const restrictedRoles = ['supplier_approver', 'supplier_processor', 'supplier_admin'];
+    return !page.props.auth?.roles?.some(r => restrictedRoles.includes(r));
+});
 
 const currencySymbol = computed(() => {
     const currency = page.props.appSettings?.currency || 'EUR';
@@ -421,7 +425,7 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                             </div>
                             
                             <!-- Quantity and Add Button Container -->
-                            <div class="flex items-center space-x-2" :class="viewMode === 'list' ? 'w-64' : 'w-full'">
+                            <div v-if="canAddToCart" class="flex items-center space-x-2" :class="viewMode === 'list' ? 'w-64' : 'w-full'">
                                 <!-- Quantity Selector -->
                                 <div class="flex items-center border border-gray-300 rounded h-10 w-24 flex-shrink-0 bg-white hover:border-[#e96a25] transition-colors">
                                     <button @click.prevent="updateQuantity(product.id, -1)" class="px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3">-</button>

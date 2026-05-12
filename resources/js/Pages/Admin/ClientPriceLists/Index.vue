@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import CategorySidebar from '@/Components/CategorySidebar.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
     priceLists: Array,
@@ -245,9 +246,22 @@ const submitUpdate = (id) => {
     });
 };
 
+const priceToDelete = ref(null);
+const showDeleteModal = ref(false);
+
 const deletePrice = (id) => {
-    if (confirm('Are you sure you want to remove this custom client price?')) {
-        useForm({}).delete(route('admin.client-price-lists.destroy', id));
+    priceToDelete.value = id;
+    showDeleteModal.value = true;
+};
+
+const executeDeletePrice = () => {
+    if (priceToDelete.value) {
+        useForm({}).delete(route('admin.client-price-lists.destroy', priceToDelete.value), {
+            onFinish: () => {
+                showDeleteModal.value = false;
+                priceToDelete.value = null;
+            }
+        });
     }
 };
 
@@ -787,5 +801,15 @@ const getPriceDiffBadge = (item) => {
                 </form>
             </div>
         </div>
+        <!-- Delete Custom Price Confirmation Modal -->
+        <ConfirmationModal
+            :show="showDeleteModal"
+            title="Remove Custom Price"
+            message="Are you sure you want to remove this custom client price? This action will revert the product pricing for this client back to standard catalog rates."
+            type="danger"
+            confirmLabel="Confirm Removal"
+            @close="showDeleteModal = false; priceToDelete = null"
+            @confirm="executeDeletePrice"
+        />
     </AuthenticatedLayout>
 </template>

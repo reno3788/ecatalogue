@@ -4,6 +4,7 @@ import Pagination from '@/Components/Pagination.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
     orders: Object,
@@ -44,6 +45,37 @@ const resetFilters = () => {
     filterStatus.value = '';
 };
 
+// --- Premium Custom Month Picker Logic ---
+const isPickerOpen = ref(false);
+const pickerYear = ref(new Date().getFullYear());
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const openPicker = () => {
+    if (filterMonth.value) {
+        pickerYear.value = parseInt(filterMonth.value.split('-')[0]);
+    } else {
+        pickerYear.value = new Date().getFullYear();
+    }
+    isPickerOpen.value = !isPickerOpen.value;
+};
+
+const selectMonth = (monthNum) => {
+    const formattedMonth = String(monthNum).padStart(2, '0');
+    filterMonth.value = `${pickerYear.value}-${formattedMonth}`;
+    isPickerOpen.value = false;
+};
+
+const displayPeriod = computed(() => {
+    if (!filterMonth.value) return 'All Time';
+    const parts = filterMonth.value.split('-');
+    if (parts.length < 2) return 'All Time';
+    const y = parts[0];
+    const m = parseInt(parts[1]);
+    if (isNaN(m) || m < 1 || m > 12) return 'All Time';
+    return `${monthNames[m - 1]} ${y}`;
+});
+// ---------------------------------------
+
 // Modal logic
 const showModal = ref(false);
 const selectedOrder = ref(null);
@@ -68,24 +100,34 @@ const closeModal = () => {
 };
 
 const isUpdating = ref(false);
-const updateOrderStatus = (statusVal) => {
-    if (!confirm(`Are you sure you want to mark this order as ${statusVal}?`)) return;
-    
-    const targetUrl = route('orders.update-status', selectedOrder.value.id);
-    console.log('Dispatching status update to:', targetUrl);
+const showStatusConfirmModal = ref(false);
+const pendingStatus = ref('');
 
+const updateOrderStatus = (statusVal) => {
+    pendingStatus.value = statusVal;
+    showStatusConfirmModal.value = true;
+};
+
+const executeStatusUpdate = () => {
+    if (!selectedOrder.value || !pendingStatus.value) return;
+
+    const targetUrl = route('orders.update-status', selectedOrder.value.id);
+    
     router.patch(targetUrl, {
-        status: statusVal
+        status: pendingStatus.value
     }, {
         preserveScroll: true,
         onStart: () => { isUpdating.value = true; },
-        onFinish: () => { isUpdating.value = false; },
+        onFinish: () => { 
+            isUpdating.value = false; 
+            showStatusConfirmModal.value = false; 
+            pendingStatus.value = '';
+        },
         onSuccess: () => {
             closeModal();
         },
         onError: (errors) => {
             console.error('Update Error:', errors);
-            alert('Action failed. Please try again.');
         }
     });
 };
@@ -112,7 +154,7 @@ const getStatusBadgeClass = (status) => {
         <template #header>
             <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 class="font-extrabold text-2xl text-[#1a2b4c] leading-tight tracking-tight">Workspace Dashboard</h2>
+                    <h2 class="font-extrabold text-2xl text-[#1a2b4c] leading-tight tracking-tight">Buyer Dashboard</h2>
                     <p class="text-sm text-gray-500 mt-1">View summary statistics and company transaction history.</p>
                 </div>
             </div>
@@ -151,9 +193,62 @@ const getStatusBadgeClass = (status) => {
             <!-- Top Filter Bar (Month only for global dashboard logic) -->
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <h3 class="text-lg font-black text-[#1a2b4c]">Overview Statistics</h3>
-                <div class="flex items-center gap-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-wider">Period:</label>
-                    <input type="month" v-model="filterMonth" class="border-gray-200 rounded-lg text-sm font-bold text-[#1a2b4c] focus:border-[#e96a25] focus:ring focus:ring-[#e96a25]/20 shadow-sm px-3 py-1.5" />
+                <!-- Premium Custom Month Picker -->
+                <div class="relative">
+                    <!-- The Capsule Button -->
+                    <button 
+                        @click="openPicker"
+                        type="button"
+                        class="flex items-center space-x-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm hover:border-[#e96a25] transition-all min-w-[160px] text-left group"
+                    >
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100 pr-2 shrink-0 group-hover:text-[#e96a25]">Period</span>
+                        <span class="text-xs font-bold text-[#1a2b4c] flex-1">{{ displayPeriod }}</span>
+                        <!-- Simple Chevron Icon -->
+                        <svg class="w-3 h-3 text-gray-400 group-hover:text-[#e96a25] transition-transform" :class="{'rotate-180': isPickerOpen}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+
+                    <!-- Transparent Click-Outside Overlay -->
+                    <div v-if="isPickerOpen" @click="isPickerOpen = false" class="fixed inset-0 z-40"></div>
+
+                    <!-- The Floating Premium Picker Card -->
+                    <div v-if="isPickerOpen" class="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 p-4 origin-top-right transform transition-all duration-200 ease-out scale-100 opacity-100">
+                         <!-- Header: Year Nav -->
+                         <div class="flex items-center justify-between mb-4 border-b border-gray-50 pb-2">
+                             <button type="button" @click.stop="pickerYear--" class="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 hover:text-[#e96a25] transition-colors">
+                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                             </button>
+                             <span class="text-sm font-black text-[#1a2b4c] tracking-wide">{{ pickerYear }}</span>
+                             <button type="button" @click.stop="pickerYear++" class="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 hover:text-[#e96a25] transition-colors">
+                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                             </button>
+                         </div>
+                         <!-- Grid: Months -->
+                         <div class="grid grid-cols-3 gap-2">
+                             <button 
+                                v-for="(m, i) in monthNames" 
+                                :key="i"
+                                type="button"
+                                @click.stop="selectMonth(i+1)"
+                                :class="[
+                                    'py-2 text-xs font-bold rounded-lg transition-all border',
+                                    filterMonth === `${pickerYear}-${String(i+1).padStart(2,'0')}` 
+                                       ? 'bg-[#e96a25] text-white border-[#e96a25] shadow-md shadow-orange-200'
+                                       : 'text-gray-600 bg-white border-transparent hover:border-orange-100 hover:bg-orange-50 hover:text-[#e96a25]'
+                                ]"
+                             >{{ m }}</button>
+                         </div>
+                         
+                         <!-- Clear Option -->
+                         <div class="mt-3 pt-2 border-t border-gray-50 text-center">
+                             <button 
+                                type="button" 
+                                @click.stop="filterMonth = ''; isPickerOpen = false;"
+                                class="text-[10px] font-bold text-gray-400 hover:text-[#e96a25] uppercase tracking-wider"
+                             >
+                                 Clear Filter
+                             </button>
+                         </div>
+                    </div>
                 </div>
             </div>
 
@@ -315,6 +410,29 @@ const getStatusBadgeClass = (status) => {
                                 <span class="text-2xl font-black text-[#e96a25]">{{ formatCurrency(selectedOrder.total) }}</span>
                             </div>
                         </div>
+                        <!-- Approval Trail Logs Section -->
+                        <div v-if="$page.props.auth.roles.some(r => ['admin', 'supplier_admin', 'supplier_processor', 'supplier_approver'].includes(r)) && (selectedOrder.approval_logs && selectedOrder.approval_logs.length > 0)" class="mt-6 border-t border-gray-100 pt-4">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Approval Trail Log</h4>
+                            <div class="space-y-3 overflow-y-auto max-h-40 pr-1">
+                                <div v-for="log in selectedOrder.approval_logs" :key="log.id" class="flex gap-3 text-sm">
+                                    <div class="flex-shrink-0 w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold uppercase text-[10px] border border-indigo-100">
+                                        {{ log.user?.name?.charAt(0) }}
+                                    </div>
+                                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                        <div class="flex justify-between items-start mb-1">
+                                            <span class="font-bold text-gray-900 text-xs">{{ log.user?.name }}</span>
+                                            <span class="text-[10px] text-gray-400">{{ new Date(log.created_at).toLocaleDateString() }}</span>
+                                        </div>
+                                        <div class="inline-block text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                                            :class="log.action.toLowerCase() === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : (log.action.toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-blue-50 text-blue-700 border-blue-100')">
+                                            {{ log.action }}
+                                        </div>
+                                        <p v-if="log.note" class="text-xs text-gray-600 italic mt-1.5 bg-white/50 p-1.5 rounded">"{{ log.note }}"</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mt-8 space-y-3">
                             <!-- Buyer Action 1: Accept Quotation & Transform into PO -->
                             <button v-if="selectedOrder.status === 'Quotation'" 
@@ -340,5 +458,15 @@ const getStatusBadgeClass = (status) => {
                 </div>
             </div>
         </div>
+        <!-- Order Status Change Modal -->
+        <ConfirmationModal
+            :show="showStatusConfirmModal"
+            title="Update Order Status"
+            :message="`Are you sure you want to mark this order as ${pendingStatus}? This action will impact the current procurement stage.`"
+            type="primary"
+            confirmLabel="Update Status"
+            @close="showStatusConfirmModal = false; pendingStatus = ''"
+            @confirm="executeStatusUpdate"
+        />
     </AuthenticatedLayout>
 </template>

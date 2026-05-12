@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import axios from 'axios';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
     categories: Array,
@@ -176,17 +177,27 @@ const updateCategoryParent = async (categoryId, parentId) => {
     }
 };
 
-// Force Delete handling via inertia
+const categoryToDelete = ref(null);
+const showDeleteModal = ref(false);
+
 const handleDelete = (categoryId) => {
-    if (confirm('Are you sure you want to delete this category? This will also delete all of its subcategories.')) {
-        router.delete(route('admin.categories.destroy', categoryId), {
-            onSuccess: () => {
-                // Refresh local categories state
-                localCategories.value = localCategories.value.filter(c => c.id !== categoryId);
-                showToast('Category deleted successfully.');
-            }
-        });
-    }
+    categoryToDelete.value = categoryId;
+    showDeleteModal.value = true;
+};
+
+const executeDeleteCategory = () => {
+    if (!categoryToDelete.value) return;
+    
+    const catId = categoryToDelete.value;
+    router.delete(route('admin.categories.destroy', catId), {
+        onSuccess: () => {
+            // Refresh local categories state
+            localCategories.value = localCategories.value.filter(c => c.id !== catId);
+            showToast('Category deleted successfully.');
+            showDeleteModal.value = false;
+            categoryToDelete.value = null;
+        }
+    });
 };
 </script>
 
@@ -477,6 +488,16 @@ const handleDelete = (categoryId) => {
                 </div>
             </div>
         </div>
+        <!-- Delete Category Confirmation Modal -->
+        <ConfirmationModal
+            :show="showDeleteModal"
+            title="Delete Category"
+            message="Are you sure you want to permanently delete this category? This operation will also cascade and delete all descendant subcategories within this structure. This action cannot be undone."
+            type="danger"
+            confirmLabel="Confirm Delete"
+            @close="showDeleteModal = false; categoryToDelete = null"
+            @confirm="executeDeleteCategory"
+        />
     </AuthenticatedLayout>
 </template>
 

@@ -13,10 +13,12 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         
-        // Non-admin base dashboard
-        if (!$user->company_id) {
+        $isSupplierApprover = $user->hasRole('supplier_approver');
+
+        // Non-admin base dashboard guard
+        if (!$user->company_id && !$isSupplierApprover) {
             return Inertia::render('Dashboard', [
-                'orders' => ['data' => []],
+                'orders' => ['data' => [], 'links' => []],
                 'filters' => $request->only(['month', 'status']),
                 'summary' => [
                     'RFQ' => 0,
@@ -27,8 +29,12 @@ class DashboardController extends Controller
             ])->with('error', 'You are not assigned to a company.');
         }
 
-        // Base query for user's company
-        $baseQuery = Order::where('company_id', $user->company_id);
+        // Base query: Supplier Approvers see ALL orders, others only see company orders
+        if ($isSupplierApprover) {
+            $baseQuery = Order::query();
+        } else {
+            $baseQuery = Order::where('company_id', $user->company_id);
+        }
 
         // Apply period (month) filter BEFORE summary to ensure cards react to selected period
         $monthFilter = $request->input('month');

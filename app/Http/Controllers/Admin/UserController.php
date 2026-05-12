@@ -24,6 +24,28 @@ class UserController extends Controller
         ]);
     }
 
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+            'company_id' => 'nullable|exists:companies,id',
+            'role' => 'required|string|exists:roles,name',
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+            'company_id' => $request->company_id,
+        ]);
+
+        $user->assignRole($request->role);
+
+        return redirect()->back()->with('success', 'User created successfully.');
+    }
+
     public function update(Request $request, User $user)
     {
         $request->validate([

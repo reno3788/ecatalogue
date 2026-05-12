@@ -2,12 +2,15 @@
 import { Link } from '@inertiajs/vue3';
 
 defineProps({
-    links: Array,
+    links: {
+        type: Array,
+        default: () => []
+    },
 });
 </script>
 
 <template>
-    <div v-if="links.length > 3">
+    <div v-if="links && links.length > 3">
         <div class="flex flex-wrap -mb-1 justify-center sm:justify-end mt-4">
             <template v-for="(link, key) in links" :key="key">
                 <div v-if="link.url === null" 

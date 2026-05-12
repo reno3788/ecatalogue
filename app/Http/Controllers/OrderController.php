@@ -12,18 +12,24 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
-        // Ensure the user belongs to a company
-        if (!$user->company_id) {
+        $isSupplierApprover = $user->hasRole('supplier_approver');
+
+        // Ensure the user belongs to a company or is a supplier approver
+        if (!$user->company_id && !$isSupplierApprover) {
             return Inertia::render('Orders/Index', [
-                'orders' => [],
+                'orders' => ['data' => [], 'links' => []],
                 'filters' => $request->only(['month', 'status']),
                 'statuses' => ['RFQ', 'Submitted', 'Approved', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
             ])->with('error', 'You are not assigned to a company.');
         }
 
-        $query = Order::where('company_id', $user->company_id)
-            ->with(['user'])
+        if ($isSupplierApprover) {
+            $query = Order::query();
+        } else {
+            $query = Order::where('company_id', $user->company_id);
+        }
+
+        $query->with(['user'])
             ->withCount('items')
             ->latest();
 
@@ -50,19 +56,21 @@ class OrderController extends Controller
     
     public function show(Order $order)
     {
-        // Ensure authorization
-        if ($order->company_id !== auth()->user()->company_id) {
+        // Ensure authorization: either own company or supplier approver role
+        $isSupplierApprover = auth()->user()->hasRole('supplier_approver');
+        if (!$isSupplierApprover && $order->company_id !== auth()->user()->company_id) {
             abort(403);
         }
         
-        $order->load(['items.product', 'user']);
+        $order->load(['items.product', 'user', 'approvalLogs.user']);
         return response()->json($order);
     }
 
     public function updateStatus(Request $request, Order $order)
     {
         // Ensure authorization
-        if ($order->company_id !== auth()->user()->company_id) {
+        $isSupplierApprover = auth()->user()->hasRole('supplier_approver');
+        if (!$isSupplierApprover && $order->company_id !== auth()->user()->company_id) {
             abort(403);
         }
 

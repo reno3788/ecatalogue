@@ -69,16 +69,16 @@ const closeModal = () => {
 const statusForm = useForm({
     status: '',
     rejection_reason: '',
+    note: '',
 });
 
 const submitStatusUpdate = (orderId) => {
     statusForm.patch(route('admin.orders.update-status', orderId), {
         preserveScroll: true,
         onSuccess: () => {
-            if (selectedOrder.value) {
-                selectedOrder.value.status = statusForm.status;
-                selectedOrder.value.rejection_reason = statusForm.rejection_reason;
-            }
+            // Complete Reload to ensure fresh workflow/can_approve states are fetched!
+            openDetails(orderId);
+            statusForm.reset('status', 'rejection_reason', 'note');
         },
     });
 };
@@ -86,10 +86,14 @@ const submitStatusUpdate = (orderId) => {
 const prepareStatusUpdate = (st) => {
     statusForm.status = st;
     statusForm.rejection_reason = '';
+    statusForm.note = '';
 };
+
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 // Batch Update Functionality
 const selectedOrderIds = ref([]);
+const showBatchConfirmModal = ref(false);
 
 const isAllSelected = computed(() => {
     if (!props.orders?.data || props.orders.data.length === 0) return false;
@@ -110,18 +114,17 @@ const batchForm = useForm({
     rejection_reason: ''
 });
 
-const submitBatchStatusUpdate = () => {
+const initiateBatchStatusUpdate = () => {
     if (!batchForm.status) return;
     if (batchForm.status === 'Rejected' && !batchForm.rejection_reason) {
-        // Basic alert check to ensure required backend field before sending
         alert('Please enter a rejection reason for batch rejection.');
         return;
     }
-    
-    if (!confirm(`Update status of ${selectedOrderIds.value.length} selected orders to ${batchForm.status}?`)) {
-        return;
-    }
+    showBatchConfirmModal.value = true;
+};
 
+const executeBatchStatusUpdate = () => {
+    showBatchConfirmModal.value = false;
     batchForm.order_ids = [...selectedOrderIds.value];
     batchForm.post(route('admin.orders.batch-update-status'), {
         preserveScroll: true,
@@ -225,7 +228,7 @@ const getStatusBadgeClass = (status) => {
                             <option v-for="st in props.statuses" :key="`batch-${st}`" :value="st">Mark as {{ st }}</option>
                         </select>
                         
-                        <button @click="submitBatchStatusUpdate" :disabled="!batchForm.status || batchForm.processing"
+                        <button @click="initiateBatchStatusUpdate" :disabled="!batchForm.status || batchForm.processing"
                             class="bg-[#e96a25] hover:bg-[#d1591b] text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm disabled:opacity-50 transition flex items-center gap-2">
                             <svg v-if="batchForm.processing" class="animate-spin h-3 w-3 text-white" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             Apply Update
@@ -399,6 +402,53 @@ const getStatusBadgeClass = (status) => {
                                 </div>
                             </div>
 
+                            <!-- Approval History / Logs -->
+                            <div v-if="selectedOrder.approval_logs && selectedOrder.approval_logs.length > 0">
+                                <h4 class="font-bold text-sm text-gray-700 mb-3 flex items-center">
+                                    <svg class="w-4 h-4 mr-1.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    Approval History & Activity
+                                </h4>
+                                <div class="bg-gray-50/50 rounded-xl border border-gray-100 p-4">
+                                    <div class="flow-root">
+                                        <ul role="list" class="-mb-8">
+                                            <li v-for="(log, logIdx) in selectedOrder.approval_logs" :key="log.id">
+                                                <div class="relative pb-8">
+                                                    <span v-if="logIdx !== selectedOrder.approval_logs.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                                                    
+                                                    <div class="relative flex space-x-3">
+                                                        <div>
+                                                            <span :class="[
+                                                                'h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white',
+                                                                log.action.toLowerCase().includes('approve') ? 'bg-emerald-100' : (log.action.toLowerCase().includes('reject') ? 'bg-red-100' : 'bg-blue-100')
+                                                            ]">
+                                                                <svg v-if="log.action.toLowerCase().includes('approve')" class="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                                <svg v-else-if="log.action.toLowerCase().includes('reject')" class="h-4 w-4 text-red-600" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                                                <svg v-else class="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                                                            </span>
+                                                        </div>
+                                                        <div class="min-w-0 flex-1 flex justify-between space-x-4">
+                                                            <div>
+                                                                <p class="text-xs text-gray-500">
+                                                                    <span class="font-bold text-gray-900">{{ log.user?.name || 'System' }}</span> 
+                                                                    <span class="mx-1 uppercase tracking-wide text-[10px] font-black" :class="log.action.toLowerCase().includes('approve') ? 'text-emerald-600' : (log.action.toLowerCase().includes('reject') ? 'text-red-600' : 'text-gray-600')">{{ log.action }}</span> 
+                                                                    this order.
+                                                                </p>
+                                                                <p v-if="log.note" class="text-xs italic text-gray-500 mt-1 border-l-2 border-gray-200 pl-2">
+                                                                    "{{ log.note }}"
+                                                                </p>
+                                                            </div>
+                                                            <div class="text-right text-xs whitespace-nowrap text-gray-400 font-medium">
+                                                                {{ new Date(log.created_at).toLocaleDateString() }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Update Status Action -->
                             <div class="pt-4 border-t border-gray-100">
                                 <h4 class="font-bold text-sm text-gray-700 mb-3">Update Order Status</h4>
@@ -414,11 +464,35 @@ const getStatusBadgeClass = (status) => {
                                             </button>
                                         </div>
                                         <div v-else-if="selectedOrder.status === 'Submitted'">
-                                            <button @click="prepareStatusUpdate('Approved')" 
-                                                class="w-full bg-[#1a2b4c] hover:bg-[#111d33] text-white py-3 rounded-xl font-black text-sm shadow-sm flex items-center justify-center space-x-2 transition">
-                                                <span>Approve Internal Order</span>
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                            </button>
+                                            <!-- 1. Global Security Intercept: Blocks unauthorized entities completely -->
+                                            <div v-if="!selectedOrder.can_approve" class="bg-amber-50 border border-amber-100 text-amber-800 rounded-xl p-4 text-center text-sm font-semibold shadow-inner">
+                                                <svg class="w-6 h-6 mx-auto mb-2 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                                <template v-if="selectedOrder.workflow_enabled">
+                                                    This stage is protected by a workflow approval policy.<br/>
+                                                    Awaiting authorization from assigned reviewer.
+                                                </template>
+                                                <template v-else>
+                                                    Authorization Restricted.<br/>
+                                                    Only System Administrators can perform direct approval bypasses.
+                                                </template>
+                                            </div>
+                                            
+                                            <!-- 2. Render Action Buttons ONLY to Authorized Users -->
+                                            <template v-else>
+                                                <!-- Special workflow action button -->
+                                                <button v-if="selectedOrder.workflow_enabled" @click="prepareStatusUpdate('Approved')" 
+                                                    class="w-full bg-gradient-to-r from-[#1a2b4c] to-[#2c4375] hover:from-[#e96a25] hover:to-[#ff8c42] text-white py-3.5 rounded-xl font-black text-sm shadow-lg flex items-center justify-center space-x-3 transition-all transform hover:-translate-y-0.5">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                    <span>Authorize Current Workflow Step</span>
+                                                </button>
+                                                
+                                                <!-- Normal admin bypass button -->
+                                                <button v-else @click="prepareStatusUpdate('Approved')" 
+                                                    class="w-full bg-[#1a2b4c] hover:bg-[#111d33] text-white py-3 rounded-xl font-black text-sm shadow-sm flex items-center justify-center space-x-2 transition">
+                                                    <span>Approve Internal Order</span>
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                                </button>
+                                            </template>
                                         </div>
                                         <div v-else-if="selectedOrder.status === 'Approved'">
                                             <button @click="prepareStatusUpdate('Quotation')" 
@@ -460,14 +534,25 @@ const getStatusBadgeClass = (status) => {
                                 <!-- Contextual Controls if something was selected -->
                                 <div v-if="statusForm.status && statusForm.status !== selectedOrder.status" class="bg-gray-50 rounded-xl p-4 border border-gray-200">
                                     <!-- Rejection Textarea -->
-                                    <div v-if="statusForm.status === 'Rejected'" class="mb-3">
-                                        <label class="block text-xs font-bold text-gray-600 mb-1">Reason for Rejection <span class="text-red-500">*</span></label>
+                                    <div v-if="statusForm.status === 'Rejected'" class="mb-4">
+                                        <label class="block text-xs font-bold text-red-600 mb-1 uppercase tracking-wider">Reason for Rejection <span class="text-red-500">*</span></label>
                                         <textarea 
                                             v-model="statusForm.rejection_reason" 
+                                            rows="3"
+                                            placeholder="Provide detailed reasoning for rejecting this requisition..."
+                                            class="w-full border-red-200 bg-red-50/30 rounded-xl text-sm font-medium focus:border-red-500 focus:ring-red-500/20 placeholder:text-red-300/70"></textarea>
+                                        <div v-if="statusForm.errors.rejection_reason" class="text-xs text-red-500 mt-1 font-bold">{{ statusForm.errors.rejection_reason }}</div>
+                                    </div>
+
+                                    <!-- Generic Note for any operation (Workflow signing notes etc) -->
+                                    <div v-if="statusForm.status && statusForm.status !== 'Rejected'" class="mb-4">
+                                        <label class="block text-xs font-bold text-gray-600 mb-1 uppercase tracking-wider">Approval Annotation / Note</label>
+                                        <textarea 
+                                            v-model="statusForm.note" 
                                             rows="2"
-                                            placeholder="Enter reason for rejection..."
-                                            class="w-full border-gray-300 rounded-xl text-sm focus:border-red-500 focus:ring-red-500/20"></textarea>
-                                        <div v-if="statusForm.errors.rejection_reason" class="text-xs text-red-500 mt-1">{{ statusForm.errors.rejection_reason }}</div>
+                                            placeholder="Include any relevant commentary or instruction (optional)..."
+                                            class="w-full border-gray-300 rounded-xl text-sm focus:border-[#e96a25] focus:ring-[#e96a25]/20"></textarea>
+                                        <div v-if="statusForm.errors.note" class="text-xs text-red-500 mt-1">{{ statusForm.errors.note }}</div>
                                     </div>
 
                                     <div class="flex justify-end">
@@ -493,5 +578,15 @@ const getStatusBadgeClass = (status) => {
                 </div>
             </div>
         </div>
+        <!-- Confirmation Modal for Batch Action -->
+        <ConfirmationModal 
+            :show="showBatchConfirmModal" 
+            title="Confirm Batch Status Update"
+            :message="`Update status of ${selectedOrderIds.length} selected order(s) to ${batchForm.status}? This action will process all verified transactions according to workflow logic.`"
+            type="primary"
+            confirmLabel="Process Batch"
+            @close="showBatchConfirmModal = false"
+            @confirm="executeBatchStatusUpdate"
+        />
     </AuthenticatedLayout>
 </template>

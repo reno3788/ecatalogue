@@ -8,12 +8,13 @@ const isAdmin = computed(() => {
     return page.props.auth?.user && page.props.auth?.roles?.includes('admin');
 });
 
-const isSupplierAdmin = computed(() => {
-    return page.props.auth?.user && page.props.auth?.roles?.includes('supplier_admin');
+const isSupplier = computed(() => {
+    const supplierRoles = ['supplier_admin', 'supplier_processor', 'supplier_approver'];
+    return page.props.auth?.user && page.props.auth?.roles?.some(r => supplierRoles.includes(r));
 });
 
 const hasSidebar = computed(() => {
-    return isAdmin.value || isSupplierAdmin.value;
+    return isAdmin.value || isSupplier.value;
 });
 </script>
 
@@ -36,7 +37,6 @@ const hasSidebar = computed(() => {
             </div>
             <div class="space-y-1">
                 <Link 
-                    v-if="isAdmin"
                     :href="route('admin.dashboard')" 
                     :class="[
                         'flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-semibold transition-colors block w-full',
@@ -68,7 +68,6 @@ const hasSidebar = computed(() => {
                     </div>
                     <div class="mt-2 space-y-1">
                         <Link 
-                            v-if="isAdmin || isSupplierAdmin"
                             :href="route('admin.orders.index')" 
                             :class="[
                                 'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
@@ -78,7 +77,6 @@ const hasSidebar = computed(() => {
                             <span>Orders</span>
                         </Link>
                         <Link 
-                            v-if="isAdmin"
                             :href="route('admin.products.index')" 
                             :class="[
                                 'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
@@ -88,7 +86,6 @@ const hasSidebar = computed(() => {
                             <span>Products</span>
                         </Link>
                         <Link 
-                            v-if="isAdmin"
                             :href="route('admin.categories.index')" 
                             :class="[
                                 'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
@@ -106,6 +103,16 @@ const hasSidebar = computed(() => {
                             ]"
                         >
                             <span>Users Config</span>
+                        </Link>
+                        <Link 
+                            v-if="isAdmin"
+                            :href="route('admin.workflows.index')" 
+                            :class="[
+                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
+                                route().current('admin.workflows.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
+                            ]"
+                        >
+                            <span>Workflow Approval</span>
                         </Link>
                         <Link 
                             v-if="isAdmin"

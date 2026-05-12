@@ -18,6 +18,37 @@ const filterPeriod = ref(props.filters?.period || '');
 const selectedGroupBy = ref(props.filters?.group_by || 'company');
 const selectedMetric = ref('total'); // toggle between 'total' (value) and 'count' (volume)
 
+// --- Premium Custom Month Picker Logic ---
+const isPickerOpen = ref(false);
+const pickerYear = ref(new Date().getFullYear());
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const openPicker = () => {
+    if (filterPeriod.value) {
+        pickerYear.value = parseInt(filterPeriod.value.split('-')[0]);
+    } else {
+        pickerYear.value = new Date().getFullYear();
+    }
+    isPickerOpen.value = !isPickerOpen.value;
+};
+
+const selectMonth = (monthNum) => {
+    const formattedMonth = String(monthNum).padStart(2, '0');
+    filterPeriod.value = `${pickerYear.value}-${formattedMonth}`;
+    isPickerOpen.value = false;
+};
+
+const displayPeriod = computed(() => {
+    if (!filterPeriod.value) return 'All Time';
+    const parts = filterPeriod.value.split('-');
+    if (parts.length < 2) return 'All Time';
+    const y = parts[0];
+    const m = parseInt(parts[1]);
+    if (isNaN(m) || m < 1 || m > 12) return 'All Time';
+    return `${monthNames[m - 1]} ${y}`;
+});
+// ---------------------------------------
+
 // Automatic updating trigger using Inertia partial reloading
 watch([filterPeriod, selectedGroupBy], () => {
     router.get(route('admin.dashboard'), {
@@ -130,7 +161,7 @@ const formatDate = (dateStr) => {
         <template #header>
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="font-bold text-2xl text-[#1a2b4c] leading-tight">Admin Dashboard</h2>
+                    <h2 class="font-bold text-2xl text-[#1a2b4c] leading-tight">Supplier Dashboard</h2>
                     <p class="text-sm text-gray-500 mt-1">Overview of your e-procurement marketplace performance and user signups.</p>
                 </div>
                 <div class="text-xs text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
@@ -269,14 +300,62 @@ const formatDate = (dateStr) => {
                             </select>
                         </div>
 
-                        <!-- Combined Month/Year Selector -->
-                        <div class="flex items-center space-x-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm hover:border-gray-300 transition-colors min-w-[160px]">
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100 pr-2">Period</span>
-                            <input 
-                                type="month" 
-                                v-model="filterPeriod" 
-                                class="bg-transparent border-0 p-0 text-xs font-bold text-[#1a2b4c] focus:ring-0 cursor-pointer appearance-none w-full" 
-                            />
+                        <!-- Premium Custom Month Picker -->
+                        <div class="relative">
+                            <!-- The Capsule Button -->
+                            <button 
+                                @click="openPicker"
+                                type="button"
+                                class="flex items-center space-x-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm hover:border-[#e96a25] transition-all min-w-[160px] text-left group"
+                            >
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-r border-gray-100 pr-2 shrink-0 group-hover:text-[#e96a25]">Period</span>
+                                <span class="text-xs font-bold text-[#1a2b4c] flex-1">{{ displayPeriod }}</span>
+                                <!-- Simple Chevron Icon -->
+                                <svg class="w-3 h-3 text-gray-400 group-hover:text-[#e96a25] transition-transform" :class="{'rotate-180': isPickerOpen}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+
+                            <!-- Transparent Click-Outside Overlay -->
+                            <div v-if="isPickerOpen" @click="isPickerOpen = false" class="fixed inset-0 z-40"></div>
+
+                            <!-- The Floating Premium Picker Card -->
+                            <div v-if="isPickerOpen" class="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 p-4 origin-top-right transform transition-all duration-200 ease-out scale-100 opacity-100">
+                                 <!-- Header: Year Nav -->
+                                 <div class="flex items-center justify-between mb-4 border-b border-gray-50 pb-2">
+                                     <button type="button" @click.stop="pickerYear--" class="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 hover:text-[#e96a25] transition-colors">
+                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                     </button>
+                                     <span class="text-sm font-black text-[#1a2b4c] tracking-wide">{{ pickerYear }}</span>
+                                     <button type="button" @click.stop="pickerYear++" class="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 hover:text-[#e96a25] transition-colors">
+                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                     </button>
+                                 </div>
+                                 <!-- Grid: Months -->
+                                 <div class="grid grid-cols-3 gap-2">
+                                     <button 
+                                        v-for="(m, i) in monthNames" 
+                                        :key="i"
+                                        type="button"
+                                        @click.stop="selectMonth(i+1)"
+                                        :class="[
+                                            'py-2 text-xs font-bold rounded-lg transition-all border',
+                                            filterPeriod === `${pickerYear}-${String(i+1).padStart(2,'0')}` 
+                                               ? 'bg-[#e96a25] text-white border-[#e96a25] shadow-md shadow-orange-200'
+                                               : 'text-gray-600 bg-white border-transparent hover:border-orange-100 hover:bg-orange-50 hover:text-[#e96a25]'
+                                        ]"
+                                     >{{ m }}</button>
+                                 </div>
+                                 
+                                 <!-- Clear Option -->
+                                 <div class="mt-3 pt-2 border-t border-gray-50 text-center">
+                                     <button 
+                                        type="button" 
+                                        @click.stop="filterPeriod = ''; isPickerOpen = false;"
+                                        class="text-[10px] font-bold text-gray-400 hover:text-[#e96a25] uppercase tracking-wider"
+                                     >
+                                         Clear Filter
+                                     </button>
+                                 </div>
+                            </div>
                         </div>
                     </div>
                 </div>

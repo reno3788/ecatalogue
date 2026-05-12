@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import CategorySidebar from '@/Components/CategorySidebar.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
     products: Array,
@@ -64,9 +65,22 @@ const filteredProducts = computed(() => {
     });
 });
 
+const productToDelete = ref(null);
+const showDeleteModal = ref(false);
+
 const deleteProduct = (id) => {
-    if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
-        useForm({}).delete(route('admin.products.destroy', id));
+    productToDelete.value = id;
+    showDeleteModal.value = true;
+};
+
+const executeDeleteProduct = () => {
+    if (productToDelete.value) {
+        useForm({}).delete(route('admin.products.destroy', productToDelete.value), {
+            onFinish: () => {
+                showDeleteModal.value = false;
+                productToDelete.value = null;
+            }
+        });
     }
 };
 </script>
@@ -275,5 +289,15 @@ const deleteProduct = (id) => {
                 </form>
             </div>
         </div>
+        <!-- Delete Confirmation Modal -->
+        <ConfirmationModal
+            :show="showDeleteModal"
+            title="Delete Product"
+            message="Are you sure you want to permanently delete this product? This action cannot be undone."
+            type="danger"
+            confirmLabel="Delete Product"
+            @close="showDeleteModal = false; productToDelete = null"
+            @confirm="executeDeleteProduct"
+        />
     </AuthenticatedLayout>
 </template>

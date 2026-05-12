@@ -2,6 +2,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import Modal from '@/Components/Modal.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import TextInput from '@/Components/TextInput.vue';
+import InputError from '@/Components/InputError.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
     users: Array,
@@ -10,10 +17,19 @@ const props = defineProps({
 });
 
 const editingUser = ref(null);
+const showCreateModal = ref(false);
 
 const form = useForm({
     company_id: '',
     role: '',
+});
+
+const createForm = useForm({
+    name: '',
+    email: '',
+    password: '',
+    company_id: '',
+    role: 'buyer_requester',
 });
 
 const startEdit = (user) => {
@@ -34,10 +50,37 @@ const submitUpdate = (userId) => {
     });
 };
 
+const userToDelete = ref(null);
+const showDeleteModal = ref(false);
+
 const deleteUser = (userId) => {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-        useForm({}).delete(route('admin.users.destroy', userId));
+    userToDelete.value = userId;
+    showDeleteModal.value = true;
+};
+
+const executeDeleteUser = () => {
+    if (userToDelete.value) {
+        useForm({}).delete(route('admin.users.destroy', userToDelete.value), {
+            onFinish: () => {
+                showDeleteModal.value = false;
+                userToDelete.value = null;
+            }
+        });
     }
+};
+
+const openCreateModal = () => {
+    createForm.reset();
+    showCreateModal.value = true;
+};
+
+const submitCreate = () => {
+    createForm.post(route('admin.users.store'), {
+        onSuccess: () => {
+            showCreateModal.value = false;
+            createForm.reset();
+        }
+    });
 };
 </script>
 
@@ -51,6 +94,15 @@ const deleteUser = (userId) => {
                     <h2 class="font-bold text-2xl text-[#1a2b4c] leading-tight">User Configuration</h2>
                     <p class="text-sm text-gray-500 mt-1">Configure user roles, company affiliations, and permissions.</p>
                 </div>
+                <button 
+                    @click="openCreateModal"
+                    class="px-4 py-2 bg-[#e96a25] hover:bg-[#cf5517] text-white rounded-xl font-bold text-sm shadow-sm transition flex items-center space-x-2"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>New User</span>
+                </button>
             </div>
         </template>
 
@@ -171,5 +223,110 @@ const deleteUser = (userId) => {
                 </table>
             </div>
         </div>
+
+        <!-- Create User Modal -->
+        <Modal :show="showCreateModal" @close="showCreateModal = false" maxWidth="md">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-[#1a2b4c] mb-1">Create New User</h3>
+                <p class="text-sm text-gray-500 mb-6">Provide details to register a new system user.</p>
+
+                <form @submit.prevent="submitCreate" class="space-y-4">
+                    <div>
+                        <InputLabel for="name" value="Full Name" />
+                        <TextInput 
+                            id="name" 
+                            type="text" 
+                            class="mt-1 block w-full" 
+                            v-model="createForm.name" 
+                            required 
+                            autofocus 
+                            placeholder="John Doe"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.name" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="email" value="Email Address" />
+                        <TextInput 
+                            id="email" 
+                            type="email" 
+                            class="mt-1 block w-full" 
+                            v-model="createForm.email" 
+                            required 
+                            placeholder="john@company.com"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.email" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="password" value="Password" />
+                        <TextInput 
+                            id="password" 
+                            type="password" 
+                            class="mt-1 block w-full" 
+                            v-model="createForm.password" 
+                            required 
+                            placeholder="••••••••"
+                        />
+                        <InputError class="mt-1" :message="createForm.errors.password" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel for="role" value="Role" />
+                            <select 
+                                id="role"
+                                v-model="createForm.role" 
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#e96a25] focus:ring focus:ring-[#e96a25]/20 transition-colors text-sm"
+                                required
+                            >
+                                <option v-for="role in roles" :key="role.id" :value="role.name">
+                                    {{ role.name.replace('_', ' ').toUpperCase() }}
+                                </option>
+                            </select>
+                            <InputError class="mt-1" :message="createForm.errors.role" />
+                        </div>
+
+                        <div>
+                            <InputLabel for="company" value="Company" />
+                            <select 
+                                id="company"
+                                v-model="createForm.company_id" 
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#e96a25] focus:ring focus:ring-[#e96a25]/20 transition-colors text-sm"
+                            >
+                                <option value="">General (None)</option>
+                                <option v-for="company in companies" :key="company.id" :value="company.id">
+                                    {{ company.name }}
+                                </option>
+                            </select>
+                            <InputError class="mt-1" :message="createForm.errors.company_id" />
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex items-center justify-end space-x-3 border-t pt-4">
+                        <SecondaryButton @click="showCreateModal = false" type="button">
+                            Cancel
+                        </SecondaryButton>
+                        <PrimaryButton 
+                            class="bg-[#1a2b4c] hover:bg-[#2a3b5c] active:bg-[#1a2b4c]"
+                            :class="{ 'opacity-25': createForm.processing }" 
+                            :disabled="createForm.processing"
+                        >
+                            Create User
+                        </PrimaryButton>
+                    </div>
+                </form>
+            </div>
+        </Modal>
+        <!-- Delete User Confirmation Modal -->
+        <ConfirmationModal
+            :show="showDeleteModal"
+            title="Delete System User"
+            message="Are you sure you want to permanently delete this user? This action cannot be undone and will revoke all access privileges."
+            type="danger"
+            confirmLabel="Delete User"
+            @close="showDeleteModal = false; userToDelete = null"
+            @confirm="executeDeleteUser"
+        />
     </AuthenticatedLayout>
 </template>

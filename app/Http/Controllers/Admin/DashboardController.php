@@ -31,8 +31,8 @@ class DashboardController extends Controller
         $orders = $baseQuery->clone()->with(['user', 'company'])->latest()->get();
         
         $customers = User::with('company')
-            ->whereDoesntHave('roles', function ($q) {
-                $q->where('name', 'admin');
+            ->whereHas('roles', function ($q) {
+                $q->where('name', 'like', '%buyer%');
             })
             ->latest()
             ->get();

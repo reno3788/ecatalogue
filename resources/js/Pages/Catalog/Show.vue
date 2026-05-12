@@ -1,9 +1,14 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import StoreLayout from '@/Layouts/StoreLayout.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const page = usePage();
+
+const canAddToCart = computed(() => {
+    const restrictedRoles = ['supplier_approver', 'supplier_processor', 'supplier_admin'];
+    return !page.props.auth?.roles?.some(r => restrictedRoles.includes(r));
+});
 const formatCurrency = (val) => {
     const currency = page.props.appSettings?.currency || 'EUR';
     try {
@@ -143,7 +148,7 @@ const allImages = [
                     </div>
 
                     <!-- Add to Cart Form -->
-                    <div class="mt-auto bg-gray-50 p-6 rounded-xl border border-gray-100">
+                    <div v-if="canAddToCart" class="mt-auto bg-gray-50 p-6 rounded-xl border border-gray-100">
                         <div class="flex items-center space-x-4 mb-4">
                             <span class="font-bold text-gray-900">Quantity</span>
                             <div class="flex items-center border border-gray-300 rounded-lg h-12 w-32 bg-white">

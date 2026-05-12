@@ -241,6 +241,29 @@ const getStatusBadgeClass = (status) => {
                             </div>
                         </div>
 
+                        <!-- Approval Trail Logs Section -->
+                        <div v-if="$page.props.auth.roles.some(r => ['admin', 'supplier_admin', 'supplier_processor', 'supplier_approver'].includes(r)) && (selectedOrder.approval_logs && selectedOrder.approval_logs.length > 0)" class="mt-6 border-t border-gray-100 pt-4">
+                            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Approval Trail Log</h4>
+                            <div class="space-y-3 overflow-y-auto max-h-48 pr-1">
+                                <div v-for="log in selectedOrder.approval_logs" :key="log.id" class="flex gap-3 text-sm">
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold uppercase text-xs border border-indigo-100">
+                                        {{ log.user?.name?.charAt(0) }}
+                                    </div>
+                                    <div class="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                        <div class="flex justify-between items-start mb-1">
+                                            <span class="font-bold text-gray-900 text-xs">{{ log.user?.name }}</span>
+                                            <span class="text-[10px] text-gray-400 font-medium">{{ new Date(log.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }}</span>
+                                        </div>
+                                        <div class="inline-block text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                                            :class="log.action.toLowerCase() === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : (log.action.toLowerCase() === 'rejected' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-blue-50 text-blue-700 border-blue-100')">
+                                            {{ log.action }}
+                                        </div>
+                                        <p v-if="log.note" class="text-xs text-gray-600 italic mt-1.5 bg-white/50 p-1.5 rounded">"{{ log.note }}"</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mt-8">
                             <button @click="closeModal" class="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold transition duration-200 text-sm">
                                 Back to List
