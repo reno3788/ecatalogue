@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'sku',
+        'name',
+        'description',
+        'base_price',
+        'is_active',
+        'image',
+        'weight',
+        'color',
+        'size',
+        'brand',
+    ];
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class);
+    }
+
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class);
+    }
+
+    public function priceLists()
+    {
+        return $this->hasMany(ClientPriceList::class);
+    }
+
+    public function catalogVisibility()
+    {
+        return $this->hasMany(CatalogVisibility::class);
+    }
+
+    // Dynamic pricing helper
+    public function getPriceForCompany($companyId)
+    {
+        $customPrice = $this->priceLists()->where('company_id', $companyId)->first();
+        return $customPrice ? $customPrice->custom_price : $this->base_price;
+    }
+}

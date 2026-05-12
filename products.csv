@@ -1,0 +1,4 @@
+sku,name,description,base_price,is_active,image,weight,color,size,brand,categories,additional_images
+P-001,Laptop Pro,High performance laptop,1200.00,1,https://example.com/main1.jpg,2.5,Silver,15-inch,TechBrand,"Electronics,Computers","https://example.com/side1.jpg,https://example.com/back1.jpg"
+P-002,Office Chair,Ergonomic office chair,150.00,1,https://example.com/chair.jpg,15.0,Black,Standard,ComfortLine,"Furniture,Office","https://example.com/chair2.jpg"
+P-003,Wireless Mouse,Ergonomic wireless mouse,25.99,1,https://example.com/mouse.jpg,0.2,White,Small,TechBrand,"Electronics,Accessories",""
