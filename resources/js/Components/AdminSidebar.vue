@@ -95,6 +95,16 @@ const hasSidebar = computed(() => {
                             <span>Categories</span>
                         </Link>
                         <Link 
+                            :href="route('admin.companies.index')" 
+                            :class="[
+                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
+                                route().current('admin.companies.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
+                            ]"
+                        >
+                            <span>Companies</span>
+                        </Link>
+
+                        <Link 
                             v-if="isAdmin"
                             :href="route('admin.users.index')" 
                             :class="[
@@ -132,6 +142,16 @@ const hasSidebar = computed(() => {
                             ]"
                         >
                             <span>Client Price List</span>
+                        </Link>
+                        <Link 
+                            v-if="isAdmin"
+                            :href="route('admin.audit-logs.index')" 
+                            :class="[
+                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
+                                route().current('admin.audit-logs.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
+                            ]"
+                        >
+                            <span>Audit Trail</span>
                         </Link>
                     </div>
                 </div>

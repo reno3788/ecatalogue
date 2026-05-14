@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class AppSetting extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
+
+    protected $auditExclude = ['smtp_password'];
 
     protected $fillable = [
         'name',

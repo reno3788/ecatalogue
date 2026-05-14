@@ -32,8 +32,10 @@ class CheckoutController extends Controller
         }
 
         if ($user->is_punchout_user) {
-            // PunchOut Flow: Instead of placing a local order, build return payload
-            $gateway = $this->gatewayManager->resolve('abeta');
+            // PunchOut Flow: Load user's company and resolve configured gateway
+            $company = $user->company;
+            $gatewayName = ($company && $company->punchout_enabled) ? $company->punchout_gateway : 'abeta';
+            $gateway = $this->gatewayManager->resolve($gatewayName ?: 'abeta');
             
             $payload = $gateway->buildReturnPayload($cart);
             $returnUrl = $gateway->getReturnUrl();

@@ -34,7 +34,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'roles' => $request->user() ? $request->user()->getRoleNames() : [],
+                'roles' => $request->user() ? $request->user()->getRoleNames()->values()->all() : [],
             ],
             'cartItemsCount' => $this->getCartItemsCount($request),
             'appSettings' => \App\Models\AppSetting::first(),
