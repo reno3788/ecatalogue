@@ -38,11 +38,16 @@ class ProductController extends Controller
             'name'                 => 'required|string|max:255',
             'sku'                  => 'required|string|unique:products',
             'base_price'           => 'required|numeric|min:0',
+            'minimum_order'        => 'nullable|integer|min:1',
             'brand'                => 'nullable|string',
             'weight'               => 'nullable|numeric|min:0',
             'color'                => 'nullable|string|max:255',
             'size'                 => 'nullable|string|max:255',
             'description'          => 'nullable|string',
+            'uom'                  => 'nullable|string|max:255',
+            'classification'       => 'nullable|string|max:255',
+            'manufacturer_part_id' => 'nullable|string|max:255',
+            'manufacturer_name'    => 'nullable|string|max:255',
             'categories'           => 'array',
             'categories.*'         => 'exists:categories,id',
             'images'               => 'nullable|array',
@@ -108,11 +113,16 @@ class ProductController extends Controller
             'name'              => 'required|string|max:255',
             'sku'               => 'required|string|unique:products,sku,' . $product->id,
             'base_price'        => 'required|numeric|min:0',
+            'minimum_order'     => 'nullable|integer|min:1',
             'brand'             => 'nullable|string',
             'weight'            => 'nullable|numeric|min:0',
             'color'             => 'nullable|string|max:255',
             'size'              => 'nullable|string|max:255',
             'description'       => 'nullable|string',
+            'uom'               => 'nullable|string|max:255',
+            'classification'    => 'nullable|string|max:255',
+            'manufacturer_part_id'=> 'nullable|string|max:255',
+            'manufacturer_name' => 'nullable|string|max:255',
             'categories'        => 'array',
             'categories.*'      => 'exists:categories,id',
             'images'            => 'nullable|array',
@@ -208,7 +218,7 @@ class ProductController extends Controller
             $file = fopen('php://output', 'w');
 
             // Header row — categories are pipe-separated category names e.g. "Electronics|Laptops"
-            fputcsv($file, ['name', 'sku', 'base_price', 'brand', 'description', 'categories', 'weight', 'color', 'size']);
+            fputcsv($file, ['name', 'sku', 'base_price', 'minimum_order', 'brand', 'description', 'categories', 'weight', 'color', 'size', 'uom', 'classification', 'manufacturer_part_id', 'manufacturer_name']);
 
             // Sample row using first active product, or a fallback
             $sample = Product::with('categories')->where('is_active', true)->first();
@@ -218,15 +228,20 @@ class ProductController extends Controller
                     $sample->name,
                     $sample->sku,
                     $sample->base_price,
+                    $sample->minimum_order ?? 1,
                     $sample->brand ?? '',
                     $sample->description ?? '',
                     $catNames,
                     $sample->weight ?? '',
                     $sample->color ?? '',
                     $sample->size ?? '',
+                    $sample->uom ?? '',
+                    $sample->classification ?? '',
+                    $sample->manufacturer_part_id ?? '',
+                    $sample->manufacturer_name ?? '',
                 ]);
             } else {
-                fputcsv($file, ['Sample Product', 'SKU-EXAMPLE-001', 100000, 'BrandName', 'Product description here', 'Electronics|Laptops', 1.5, '#FF0000', 'L']);
+                fputcsv($file, ['Sample Product', 'SKU-EXAMPLE-001', 100000, 1, 'BrandName', 'Product description here', 'Electronics|Laptops', 1.5, '#FF0000', 'L', 'EA', 'UNSPSC-10101502', 'MFG-PART-XYZ', 'Global Mfg Corp']);
             }
 
             fclose($file);
@@ -278,12 +293,17 @@ class ProductController extends Controller
             ]);
         }
 
+        $minOrderIdx = array_search('minimum_order', $headers);
         $brandIdx = array_search('brand', $headers);
         $descIdx  = array_search('description', $headers);
         $catIdx   = array_search('categories', $headers);
         $weightIdx = array_search('weight', $headers);
         $colorIdx  = array_search('color', $headers);
         $sizeIdx   = array_search('size', $headers);
+        $uomIdx    = array_search('uom', $headers);
+        $classIdx  = array_search('classification', $headers);
+        $mfgPartIdx = array_search('manufacturer_part_id', $headers);
+        $mfgNameIdx = array_search('manufacturer_name', $headers);
 
         // Pre-load all categories keyed by lowercase name for fast lookup
         $allCategories = Category::all()->keyBy(fn($c) => strtolower(trim($c->name)));
@@ -293,8 +313,8 @@ class ProductController extends Controller
         $rowNum       = 1;
 
         DB::transaction(function () use (
-            $handle, $delimiter, $nameIdx, $skuIdx, $priceIdx, $brandIdx, $descIdx, $catIdx,
-            $weightIdx, $colorIdx, $sizeIdx,
+            $handle, $delimiter, $nameIdx, $skuIdx, $priceIdx, $minOrderIdx, $brandIdx, $descIdx, $catIdx,
+            $weightIdx, $colorIdx, $sizeIdx, $uomIdx, $classIdx, $mfgPartIdx, $mfgNameIdx,
             $allCategories, &$successCount, &$errors, &$rowNum
         ) {
             while (($row = fgetcsv($handle, 4096, $delimiter)) !== false) {
@@ -326,14 +346,22 @@ class ProductController extends Controller
                 $rawWeight = $weightIdx !== false ? trim($row[$weightIdx] ?? '') : '';
                 $weightVal = is_numeric($rawWeight) ? (float)$rawWeight : null;
 
+                $rawMinOrder = $minOrderIdx !== false ? trim($row[$minOrderIdx] ?? '') : '';
+                $minOrderVal = is_numeric($rawMinOrder) && (int)$rawMinOrder > 0 ? (int)$rawMinOrder : 1;
+
                 $data = [
-                    'name'        => $name,
-                    'base_price'  => (float)$cleanPrice,
-                    'brand'       => $brandIdx !== false ? (trim($row[$brandIdx] ?? '') ?: null) : null,
-                    'description' => $descIdx  !== false ? (trim($row[$descIdx]  ?? '') ?: null) : null,
-                    'weight'      => $weightVal,
-                    'color'       => $colorIdx  !== false ? (trim($row[$colorIdx] ?? '') ?: null) : null,
-                    'size'        => $sizeIdx   !== false ? (trim($row[$sizeIdx]  ?? '') ?: null) : null,
+                    'name'                 => $name,
+                    'base_price'           => (float)$cleanPrice,
+                    'minimum_order'        => $minOrderVal,
+                    'brand'                => $brandIdx !== false ? (trim($row[$brandIdx] ?? '') ?: null) : null,
+                    'description'          => $descIdx  !== false ? (trim($row[$descIdx]  ?? '') ?: null) : null,
+                    'weight'               => $weightVal,
+                    'color'                => $colorIdx  !== false ? (trim($row[$colorIdx] ?? '') ?: null) : null,
+                    'size'                 => $sizeIdx   !== false ? (trim($row[$sizeIdx]  ?? '') ?: null) : null,
+                    'uom'                  => $uomIdx !== false ? (trim($row[$uomIdx] ?? '') ?: null) : null,
+                    'classification'       => $classIdx !== false ? (trim($row[$classIdx] ?? '') ?: null) : null,
+                    'manufacturer_part_id' => $mfgPartIdx !== false ? (trim($row[$mfgPartIdx] ?? '') ?: null) : null,
+                    'manufacturer_name'    => $mfgNameIdx !== false ? (trim($row[$mfgNameIdx] ?? '') ?: null) : null,
                 ];
 
                 $product = Product::updateOrCreate(['sku' => $sku], $data);

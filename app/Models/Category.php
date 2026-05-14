@@ -24,4 +24,19 @@ class Category extends Model
     {
         return $this->belongsToMany(Product::class);
     }
+
+    /**
+     * Get ID of this category and all its recursive descendant categories.
+     * 
+     * @return array
+     */
+    public function getAllDescendantIds()
+    {
+        $ids = [$this->id];
+        // Ensure children are loaded to avoid multiple queries if already eager loaded
+        foreach ($this->children()->get() as $child) {
+            $ids = array_merge($ids, $child->getAllDescendantIds());
+        }
+        return $ids;
+    }
 }

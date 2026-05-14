@@ -114,10 +114,20 @@ const batchForm = useForm({
     rejection_reason: ''
 });
 
+const alertModal = ref({
+    show: false,
+    title: '',
+    message: ''
+});
+
 const initiateBatchStatusUpdate = () => {
     if (!batchForm.status) return;
     if (batchForm.status === 'Rejected' && !batchForm.rejection_reason) {
-        alert('Please enter a rejection reason for batch rejection.');
+        alertModal.value = {
+            show: true,
+            title: 'Rejection Reason Required',
+            message: 'Please provide a rejection reason to batch reject the selected orders.'
+        };
         return;
     }
     showBatchConfirmModal.value = true;
@@ -438,11 +448,11 @@ const getStatusBadgeClass = (status) => {
                                                         </Link>
                                                         <div class="text-xs text-gray-400 mt-0.5 font-medium flex flex-wrap gap-x-2 gap-y-0.5 items-center">
                                                             <span class="font-mono">SKU: {{ item.product.sku }}</span>
-                                                            <span v-if="item.uom" class="text-[#e96a25]">• {{ item.uom }}</span>
-                                                            <span v-if="item.classification" class="text-indigo-600 italic">• UN: {{ item.classification }}</span>
+                                                            <span v-if="item.product.uom" class="text-[#e96a25]">• UOM: {{ item.product.uom }}</span>
+                                                            <span v-if="item.product.classification" class="text-indigo-600 italic">• UN: {{ item.product.classification }}</span>
                                                         </div>
-                                                        <div v-if="item.manufacturer_part_id || item.manufacturer_name" class="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
-                                                            MFG: {{ item.manufacturer_name || '-' }} [{{ item.manufacturer_part_id || '-' }}]
+                                                        <div v-if="item.product.manufacturer_part_id || item.product.manufacturer_name" class="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+                                                            MFG: {{ item.product.manufacturer_name || '-' }} [{{ item.product.manufacturer_part_id || '-' }}]
                                                         </div>
                                                     </template>
                                                     <template v-else>
@@ -645,6 +655,18 @@ const getStatusBadgeClass = (status) => {
             confirmLabel="Process Batch"
             @close="showBatchConfirmModal = false"
             @confirm="executeBatchStatusUpdate"
+        />
+
+        <!-- Alert Warning Modal -->
+        <ConfirmationModal
+            :show="alertModal.show"
+            :title="alertModal.title"
+            :message="alertModal.message"
+            type="warning"
+            confirmLabel="Okay"
+            :hide-cancel="true"
+            @confirm="alertModal.show = false"
+            @close="alertModal.show = false"
         />
     </AuthenticatedLayout>
 </template>

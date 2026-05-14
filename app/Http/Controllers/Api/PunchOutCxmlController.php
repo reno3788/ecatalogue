@@ -128,15 +128,25 @@ class PunchOutCxmlController extends Controller
 
                 $product = Product::where('sku', $sku)->first();
 
+                // Synchronize inbound metadata catalog properties with Product storage if found
+                if ($product) {
+                    $productUpdates = array_filter([
+                        'uom' => $uom ?: null,
+                        'classification' => $classification ?: null,
+                        'manufacturer_part_id' => $mfgPartId ?: null,
+                        'manufacturer_name' => $mfgName ?: null,
+                    ]);
+                    
+                    if (!empty($productUpdates)) {
+                        $product->update($productUpdates);
+                    }
+                }
+
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $product ? $product->id : null,
                     'quantity' => $qty,
                     'price' => $price,
-                    'uom' => $uom,
-                    'classification' => $classification,
-                    'manufacturer_part_id' => $mfgPartId,
-                    'manufacturer_name' => $mfgName,
                 ]);
 
                 $actualTotal += ($qty * $price);

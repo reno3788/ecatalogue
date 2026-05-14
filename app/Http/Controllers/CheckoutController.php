@@ -48,7 +48,7 @@ class CheckoutController extends Controller
             ]);
         } else {
             // Direct Order Flow
-            return DB::transaction(function () use ($user, $cart) {
+            $order = DB::transaction(function () use ($user, $cart) {
                 // Create Order
                 $order = Order::create([
                     'company_id' => $user->company_id,
@@ -75,11 +75,21 @@ class CheckoutController extends Controller
                 $cart->items()->delete();
                 $cart->delete();
 
-                return redirect()->back()->with([
-                    'flash_type' => 'direct_order',
-                    'flash_message' => 'RFQ generated successfully',
-                ]);
+                return $order;
             });
+
+            // Safely dispatch email outside transaction context to prevent SMTP blocker crashes
+            try {
+                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OrderReceivedMail($order));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Order Confirmation Email Dispatch Failed: ' . $e->getMessage());
+            }
+
+            return redirect()->route('dashboard')->with([
+                'flash_type' => 'direct_order',
+                'flash_message' => 'Thank you for order please wait we will confirm your order',
+                'success' => 'Thank you for order please wait we will confirm your order',
+            ]);
         }
     }
 }

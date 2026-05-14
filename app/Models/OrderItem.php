@@ -15,10 +15,6 @@ class OrderItem extends Model
         'product_id',
         'quantity',
         'price',
-        'uom',
-        'classification',
-        'manufacturer_part_id',
-        'manufacturer_name',
     ];
 
     public function order()

@@ -15,9 +15,10 @@ const props = defineProps({
 
 const page = usePage();
 
-// Logic: Show login alert only once via flash message check
-const showLoginAlert = ref(!!page.props.flash?.success && page.props.flash.success.includes('logged in'));
-const dismissAlert = () => { showLoginAlert.value = false; };
+// Logic: Show success alerts dynamically via shared flash state
+const successMessage = ref(page.props.flash?.success || '');
+const showSuccessAlert = ref(!!successMessage.value);
+const dismissAlert = () => { showSuccessAlert.value = false; };
 
 const formatCurrency = (val) => {
     const currency = page.props.appSettings?.currency || 'EUR';
@@ -43,6 +44,14 @@ watch([filterMonth, filterStatus], () => {
 const resetFilters = () => {
     filterMonth.value = '';
     filterStatus.value = '';
+};
+
+const toggleStatusFilter = (statusVal) => {
+    if (filterStatus.value === statusVal) {
+        filterStatus.value = '';
+    } else {
+        filterStatus.value = statusVal;
+    }
 };
 
 // --- Premium Custom Month Picker Logic ---
@@ -171,7 +180,7 @@ const getStatusBadgeClass = (status) => {
                 leave-from-class="opacity-100"
                 leave-to-class="opacity-0"
             >
-                <div v-if="showLoginAlert" class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl shadow-sm flex items-center justify-between">
+                <div v-if="showSuccessAlert" class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl shadow-sm flex items-center justify-between">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
                             <svg class="h-5 w-5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
@@ -179,8 +188,11 @@ const getStatusBadgeClass = (status) => {
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-bold text-emerald-800">
+                            <p v-if="successMessage.includes('logged in')" class="text-sm font-bold text-emerald-800">
                                 Successful Log-in! <span class="font-medium text-emerald-700">Welcome back to your procurement dashboard.</span>
+                            </p>
+                            <p v-else class="text-sm font-bold text-emerald-800">
+                                {{ successMessage }}
                             </p>
                         </div>
                     </div>
@@ -255,50 +267,82 @@ const getStatusBadgeClass = (status) => {
             <!-- Status Overview Cards Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 <!-- Pending Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm relative overflow-hidden group">
+                <div 
+                    @click="toggleStatusFilter('RFQ')"
+                    :class="[
+                        'p-5 rounded-2xl border relative overflow-hidden group cursor-pointer transition-all duration-300 active:scale-[0.98]',
+                        filterStatus === 'RFQ' 
+                            ? 'bg-amber-50/60 border-amber-400 ring-1 ring-amber-400 shadow-md shadow-amber-50' 
+                            : 'bg-white border-gray-100 shadow-sm hover:border-amber-300 hover:shadow-md hover:shadow-amber-50/50'
+                    ]"
+                >
                     <div class="absolute top-0 right-0 p-5 text-amber-400 group-hover:scale-110 transition-transform duration-300">
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
                     <p class="text-xs font-bold uppercase tracking-widest text-gray-400">RFQ</p>
                     <h4 class="text-4xl font-black text-[#1a2b4c] mt-2">{{ summary?.RFQ || 0 }}</h4>
-                    <div class="mt-3 w-full bg-gray-50 rounded-full h-1.5">
-                        <div class="bg-amber-400 h-1.5 rounded-full" style="width: 100%"></div>
+                    <div class="mt-3 w-full bg-gray-100 rounded-full h-1.5">
+                        <div class="bg-amber-400 h-1.5 rounded-full transition-all duration-500" :style="{ width: filterStatus === 'RFQ' ? '100%' : '25%' }"></div>
                     </div>
                 </div>
 
                 <!-- Submitted Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm relative overflow-hidden group">
+                <div 
+                    @click="toggleStatusFilter('Quotation')"
+                    :class="[
+                        'p-5 rounded-2xl border relative overflow-hidden group cursor-pointer transition-all duration-300 active:scale-[0.98]',
+                        filterStatus === 'Quotation' 
+                            ? 'bg-indigo-50/60 border-indigo-500 ring-1 ring-indigo-500 shadow-md shadow-indigo-50' 
+                            : 'bg-white border-gray-100 shadow-sm hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-50/50'
+                    ]"
+                >
                     <div class="absolute top-0 right-0 p-5 text-indigo-500 group-hover:scale-110 transition-transform duration-300">
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                     </div>
                     <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Quotation</p>
                     <h4 class="text-4xl font-black text-[#1a2b4c] mt-2">{{ summary?.Quotation || 0 }}</h4>
-                    <div class="mt-3 w-full bg-gray-50 rounded-full h-1.5">
-                        <div class="bg-indigo-500 h-1.5 rounded-full" style="width: 100%"></div>
+                    <div class="mt-3 w-full bg-gray-100 rounded-full h-1.5">
+                        <div class="bg-indigo-500 h-1.5 rounded-full transition-all duration-500" :style="{ width: filterStatus === 'Quotation' ? '100%' : '25%' }"></div>
                     </div>
                 </div>
 
                 <!-- Approved Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm relative overflow-hidden group">
+                <div 
+                    @click="toggleStatusFilter('PO')"
+                    :class="[
+                        'p-5 rounded-2xl border relative overflow-hidden group cursor-pointer transition-all duration-300 active:scale-[0.98]',
+                        filterStatus === 'PO' 
+                            ? 'bg-violet-50/60 border-violet-500 ring-1 ring-violet-500 shadow-md shadow-violet-50' 
+                            : 'bg-white border-gray-100 shadow-sm hover:border-violet-300 hover:shadow-md hover:shadow-violet-50/50'
+                    ]"
+                >
                     <div class="absolute top-0 right-0 p-5 text-violet-500 group-hover:scale-110 transition-transform duration-300">
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Purchase Order</p>
                     <h4 class="text-4xl font-black text-[#1a2b4c] mt-2">{{ summary?.PO || 0 }}</h4>
-                    <div class="mt-3 w-full bg-gray-50 rounded-full h-1.5">
-                        <div class="bg-violet-500 h-1.5 rounded-full" style="width: 100%"></div>
+                    <div class="mt-3 w-full bg-gray-100 rounded-full h-1.5">
+                        <div class="bg-violet-500 h-1.5 rounded-full transition-all duration-500" :style="{ width: filterStatus === 'PO' ? '100%' : '25%' }"></div>
                     </div>
                 </div>
 
                 <!-- Finished Card -->
-                <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm relative overflow-hidden group">
+                <div 
+                    @click="toggleStatusFilter('Completed')"
+                    :class="[
+                        'p-5 rounded-2xl border relative overflow-hidden group cursor-pointer transition-all duration-300 active:scale-[0.98]',
+                        filterStatus === 'Completed' 
+                            ? 'bg-emerald-50/60 border-emerald-500 ring-1 ring-emerald-500 shadow-md shadow-emerald-50' 
+                            : 'bg-white border-gray-100 shadow-sm hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-50/50'
+                    ]"
+                >
                     <div class="absolute top-0 right-0 p-5 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                     </div>
                     <p class="text-xs font-bold uppercase tracking-widest text-gray-400">Completed</p>
                     <h4 class="text-4xl font-black text-[#1a2b4c] mt-2">{{ summary?.Completed || 0 }}</h4>
-                    <div class="mt-3 w-full bg-gray-50 rounded-full h-1.5">
-                        <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 100%"></div>
+                    <div class="mt-3 w-full bg-gray-100 rounded-full h-1.5">
+                        <div class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" :style="{ width: filterStatus === 'Completed' ? '100%' : '25%' }"></div>
                     </div>
                 </div>
             </div>

@@ -10,11 +10,16 @@ const props = defineProps({
             name: '',
             sku: '',
             base_price: '',
+            minimum_order: 1,
             brand: '',
             weight: '',
             color: '#4f46e5',
             size: '',
             description: '',
+            uom: '',
+            classification: '',
+            manufacturer_part_id: '',
+            manufacturer_name: '',
             categories: []
         })
     },
@@ -27,11 +32,16 @@ const form = useForm({
     name: props.product.name,
     sku: props.product.sku,
     base_price: props.product.base_price,
+    minimum_order: props.product.minimum_order || 1,
     brand: props.product.brand || '',
     weight: props.product.weight || '',
     color: props.product.color || '#4f46e5',
     size: props.product.size || '',
     description: props.product.description || '',
+    uom: props.product.uom || '',
+    classification: props.product.classification || '',
+    manufacturer_part_id: props.product.manufacturer_part_id || '',
+    manufacturer_name: props.product.manufacturer_name || '',
     categories: props.product.categories ? props.product.categories.map(c => c.id) : [],
     images: [],
     deleted_existing: [],
@@ -168,6 +178,12 @@ const submit = () => {
                         </div>
 
                         <div>
+                            <label class="block text-sm font-medium text-gray-700">Minimum Order Quantity</label>
+                            <input v-model="form.minimum_order" type="number" min="1" step="1" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]" required>
+                            <div v-if="form.errors.minimum_order" class="text-red-500 text-xs mt-1">{{ form.errors.minimum_order }}</div>
+                        </div>
+
+                        <div>
                             <label class="block text-sm font-medium text-gray-700">Brand</label>
                             <input v-model="form.brand" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
                             <div v-if="form.errors.brand" class="text-red-500 text-xs mt-1">{{ form.errors.brand }}</div>
@@ -196,6 +212,36 @@ const submit = () => {
                                 </div>
                                 <p class="text-[10px] text-gray-400 mt-1">Select a color or enter its hex code.</p>
                                 <div v-if="form.errors.color" class="text-red-500 text-xs mt-1">{{ form.errors.color }}</div>
+                            </div>
+                        </div>
+
+                        <!-- B2B Procurement Metadata -->
+                        <div class="border-t border-gray-100 pt-4 pb-2">
+                            <h3 class="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">B2B Procurement Details</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Unit of Measure (UOM)</label>
+                                    <input v-model="form.uom" type="text" placeholder="e.g. EA, CS, UN" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
+                                    <div v-if="form.errors.uom" class="text-red-500 text-xs mt-1">{{ form.errors.uom }}</div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Classification Code (UNSPSC)</label>
+                                    <input v-model="form.classification" type="text" placeholder="e.g. 10101502" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
+                                    <div v-if="form.errors.classification" class="text-red-500 text-xs mt-1">{{ form.errors.classification }}</div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Manufacturer Part ID</label>
+                                    <input v-model="form.manufacturer_part_id" type="text" placeholder="e.g. MFR-123-ABC" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
+                                    <div v-if="form.errors.manufacturer_part_id" class="text-red-500 text-xs mt-1">{{ form.errors.manufacturer_part_id }}</div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Manufacturer Name</label>
+                                    <input v-model="form.manufacturer_name" type="text" placeholder="e.g. Global Manufacturing Inc." class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
+                                    <div v-if="form.errors.manufacturer_name" class="text-red-500 text-xs mt-1">{{ form.errors.manufacturer_name }}</div>
+                                </div>
                             </div>
                         </div>
 

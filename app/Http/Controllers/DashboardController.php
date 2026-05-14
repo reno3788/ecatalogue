@@ -68,7 +68,11 @@ class DashboardController extends Controller
             ->latest();
 
         if ($request->filled('status')) {
-            $gridQuery->where('status', $request->status);
+            if ($request->status === 'RFQ') {
+                $gridQuery->whereIn('status', ['RFQ', 'Submitted', 'Approved']);
+            } else {
+                $gridQuery->where('status', $request->status);
+            }
         }
 
         $orders = $gridQuery->paginate(10)->withQueryString();
@@ -77,7 +81,7 @@ class DashboardController extends Controller
             'orders' => $orders,
             'summary' => $summary,
             'filters' => $request->only(['month', 'status']),
-            'statuses' => ['RFQ', 'Submitted', 'Approved', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
+            'statuses' => ['RFQ', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
         ]);
     }
 }

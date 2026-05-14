@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import axios from 'axios';
 import Modal from '@/Components/Modal.vue';
+import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
     settings: Object,
@@ -16,6 +17,12 @@ const smtpTestMessage = ref(null);
 const smtpTestSuccess = ref(false);
 const showTestModal = ref(false);
 const testRecipientEmail = ref('');
+
+const alertModal = ref({
+    show: false,
+    title: '',
+    message: ''
+});
 
 const form = useForm({
     name: props.settings?.name || '',
@@ -32,7 +39,11 @@ const form = useForm({
 
 const openSmtpTestModal = () => {
     if (!form.smtp_host || !form.smtp_port || !form.smtp_from_address) {
-        alert('Please fill in Host, Port, and Sender Address first.');
+        alertModal.value = {
+            show: true,
+            title: 'Missing Parameters',
+            message: 'Please supply SMTP Host, Port, and Sender Address configuration data before initiating connectivity diagnostics.'
+        };
         return;
     }
     testRecipientEmail.value = form.smtp_from_address;
@@ -353,5 +364,17 @@ const currencies = [
                 </div>
             </div>
         </Modal>
+
+        <!-- App Alert Modal -->
+        <ConfirmationModal
+            :show="alertModal.show"
+            :title="alertModal.title"
+            :message="alertModal.message"
+            type="warning"
+            confirmLabel="Understood"
+            :hide-cancel="true"
+            @confirm="alertModal.show = false"
+            @close="alertModal.show = false"
+        />
     </AuthenticatedLayout>
 </template>

@@ -15,12 +15,17 @@ class Product extends Model
         'name',
         'description',
         'base_price',
+        'minimum_order',
         'is_active',
         'image',
         'weight',
         'color',
         'size',
         'brand',
+        'uom',
+        'classification',
+        'manufacturer_part_id',
+        'manufacturer_name',
     ];
 
     public function images()

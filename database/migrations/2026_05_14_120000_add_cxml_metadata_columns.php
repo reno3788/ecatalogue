@@ -28,9 +28,9 @@ return new class extends Migration
             $table->text('billing_address')->nullable();
         });
 
-        // Add B2B structural tracking and supplier metadata to line items
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->string('uom')->nullable()->after('price');
+        // Add B2B structural tracking and supplier metadata to products catalogue
+        Schema::table('products', function (Blueprint $table) {
+            $table->string('uom')->nullable()->after('brand');
             $table->string('classification')->nullable()->after('uom');
             $table->string('manufacturer_part_id')->nullable()->after('classification');
             $table->string('manufacturer_name')->nullable()->after('manufacturer_part_id');
@@ -56,7 +56,7 @@ return new class extends Migration
             ]);
         });
 
-        Schema::table('order_items', function (Blueprint $table) {
+        Schema::table('products', function (Blueprint $table) {
             $table->dropColumn([
                 'uom',
                 'classification',

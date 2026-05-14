@@ -30,7 +30,7 @@ const props = defineProps({
 
 const form = useForm({
     product_id: props.product.id,
-    quantity: 1
+    quantity: Math.max(1, props.product.minimum_order || 1)
 });
 
 const addedToCart = ref(false);
@@ -48,9 +48,17 @@ const addToCart = () => {
 };
 
 const updateQuantity = (change) => {
+    const minLimit = Math.max(1, props.product.minimum_order || 1);
     const newVal = form.quantity + change;
-    if (newVal >= 1) {
+    if (newVal >= minLimit) {
         form.quantity = newVal;
+    }
+};
+
+const validateQuantity = () => {
+    const minLimit = Math.max(1, props.product.minimum_order || 1);
+    if (!form.quantity || form.quantity < minLimit) {
+        form.quantity = minLimit;
     }
 };
 
@@ -131,7 +139,7 @@ const allImages = [
                     <div class="prose prose-sm text-gray-600 mb-8 border-t border-b border-gray-100 py-6">
                         <p>{{ product.description || 'No detailed description available for this product.' }}</p>
                         
-                        <div class="mt-6 grid grid-cols-2 gap-4 text-sm" v-if="product.weight || product.color || product.size">
+                        <div class="mt-6 grid grid-cols-2 gap-4 text-sm" v-if="product.weight || product.color || product.size || product.uom">
                             <div v-if="product.weight">
                                 <span class="font-bold text-gray-900 block">Weight</span>
                                 {{ product.weight }}
@@ -144,6 +152,14 @@ const allImages = [
                                 <span class="font-bold text-gray-900 block">Size</span>
                                 {{ product.size }}
                             </div>
+                            <div v-if="product.uom">
+                                <span class="font-bold text-gray-900 block">Unit</span>
+                                {{ product.uom }}
+                            </div>
+                            <div v-if="product.minimum_order > 1">
+                                <span class="font-bold text-red-600 block">Min. Order</span>
+                                {{ product.minimum_order }}
+                            </div>
                         </div>
                     </div>
 
@@ -153,7 +169,7 @@ const allImages = [
                             <span class="font-bold text-gray-900">Quantity</span>
                             <div class="flex items-center border border-gray-300 rounded-lg h-12 w-32 bg-white">
                                 <button @click="updateQuantity(-1)" class="px-4 text-gray-500 hover:text-gray-900 transition-colors">-</button>
-                                <input type="number" v-model.number="form.quantity" min="1" class="w-full text-center border-none focus:ring-0 p-0 font-medium" />
+                                <input type="number" v-model.number="form.quantity" :min="Math.max(1, product.minimum_order || 1)" @change="validateQuantity" class="w-full text-center border-none focus:ring-0 p-0 font-medium" />
                                 <button @click="updateQuantity(1)" class="px-4 text-gray-500 hover:text-gray-900 transition-colors">+</button>
                             </div>
                         </div>

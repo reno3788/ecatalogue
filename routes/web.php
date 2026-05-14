@@ -26,6 +26,7 @@ Route::get('/products/{product}', [CatalogController::class, 'show'])->name('cat
 Route::middleware([RestrictSupplierCartAccess::class])->group(function () {
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+    Route::patch('/cart/item/{cartItem}', [CartController::class, 'update'])->name('cart.update');
     Route::delete('/cart/item/{cartItem}', [CartController::class, 'remove'])->name('cart.remove');
 });
 

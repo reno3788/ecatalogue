@@ -272,11 +272,11 @@ const getStatusBadgeClass = (status) => {
                                             <Link :href="route('catalog.show', item.product.id)" class="font-bold text-gray-800 hover:text-[#e96a25] hover:underline transition">{{ item.product.name }}</Link>
                                             <div class="text-[11px] text-gray-400 font-medium mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
                                                 <span class="font-mono">SKU: {{ item.product.sku }}</span>
-                                                <span v-if="item.uom" class="text-[#e96a25] font-black">• {{ item.uom }}</span>
-                                                <span v-if="item.classification" class="text-indigo-600 italic">• UN: {{ item.classification }}</span>
+                                                <span v-if="item.product.uom" class="text-[#e96a25] font-black">• UOM: {{ item.product.uom }}</span>
+                                                <span v-if="item.product.classification" class="text-indigo-600 italic">• UN: {{ item.product.classification }}</span>
                                             </div>
-                                            <div v-if="item.manufacturer_part_id || item.manufacturer_name" class="text-[9px] text-gray-400 uppercase font-semibold tracking-wider mt-0.5">
-                                                MFG: {{ item.manufacturer_name || '-' }} [{{ item.manufacturer_part_id || '-' }}]
+                                            <div v-if="item.product.manufacturer_part_id || item.product.manufacturer_name" class="text-[9px] text-gray-400 uppercase font-semibold tracking-wider mt-0.5">
+                                                MFG: {{ item.product.manufacturer_name || '-' }} [{{ item.product.manufacturer_part_id || '-' }}]
                                             </div>
                                         </template>
                                         <template v-else>

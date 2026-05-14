@@ -75,15 +75,31 @@ const addedProduct = ref(null);
 const animatingProduct = ref(null);
 const quantities = ref({});
 
-// Initialize quantities to 1 for all products
-props.products.forEach(p => {
-    quantities.value[p.id] = 1;
-});
+// Initialize quantities to minimum order limit or default 1 for all products
+const initQuantities = () => {
+    props.products.forEach(p => {
+        if (!(p.id in quantities.value)) {
+            quantities.value[p.id] = Math.max(1, p.minimum_order || 1);
+        }
+    });
+};
+initQuantities();
+watch(() => props.products, initQuantities, { immediate: true });
 
 const updateQuantity = (productId, delta) => {
-    const current = quantities.value[productId] || 1;
-    if (current + delta >= 1) {
+    const prod = props.products.find(p => p.id === productId);
+    const minLimit = prod ? Math.max(1, prod.minimum_order || 1) : 1;
+    const current = quantities.value[productId] || minLimit;
+    if (current + delta >= minLimit) {
         quantities.value[productId] = current + delta;
+    }
+};
+
+const validateQuantity = (product) => {
+    const minLimit = Math.max(1, product.minimum_order || 1);
+    let current = quantities.value[product.id];
+    if (!current || current < minLimit) {
+        quantities.value[product.id] = minLimit;
     }
 };
 
@@ -114,26 +130,49 @@ const addToCart = (product) => {
 };
 
 // Filters logic
+const isLoading = ref(false);
+let debounceTimeout = null;
+
 const filterState = reactive({
     category: props.filters.category || null,
     q: props.filters.q || '',
-    brands: props.filters.brands || [],
+    brands: Array.isArray(props.filters.brands) ? [...props.filters.brands] : [],
     min_price: props.filters.min_price || props.priceRange.min,
     max_price: props.filters.max_price || props.priceRange.max,
     sort: props.filters.sort || 'relevance'
 });
 
-const updateFilters = () => {
-    router.get(route('catalog.index'), filterState, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-    });
+const updateFilters = (debounce = false) => {
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    
+    const runRequest = () => {
+        isLoading.value = true;
+        router.get(route('catalog.index'), filterState, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
+            onError: () => {
+                isLoading.value = false;
+            }
+        });
+    };
+    
+    if (debounce) {
+        debounceTimeout = setTimeout(runRequest, 400);
+    } else {
+        runRequest();
+    }
 };
 
-watch(filterState, () => {
-    updateFilters();
-}, { deep: true });
+watch(() => filterState.q, () => updateFilters(true));
+watch(() => filterState.min_price, () => updateFilters(true));
+watch(() => filterState.max_price, () => updateFilters(true));
+watch(() => filterState.category, () => updateFilters(false));
+watch(() => filterState.brands, () => updateFilters(false), { deep: true });
+watch(() => filterState.sort, () => updateFilters(false));
 
 const setCategory = (slug) => {
     filterState.category = slug;
@@ -386,12 +425,40 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                 </div>
             </div>
 
-            <!-- Product Grid -->
-            <TransitionGroup 
-                name="list" 
-                tag="div" 
-                :class="viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative' : 'flex flex-col space-y-4 relative'"
-            >
+            <!-- Interactive Product Catalog Container with Loading Glassmorphism Overlay -->
+            <div class="relative min-h-[400px]">
+                
+                <!-- Single Page Application Glassmorphism Loading State -->
+                <Transition
+                    enter-active-class="transition ease-out duration-300"
+                    enter-from-class="opacity-0"
+                    enter-to-class="opacity-100"
+                    leave-active-class="transition ease-in duration-200"
+                    leave-from-class="opacity-100"
+                    leave-to-class="opacity-0"
+                >
+                    <div v-if="isLoading" class="absolute inset-0 z-30 bg-white/40 backdrop-blur-[1.5px] flex flex-col items-center justify-start pt-32 transition-all duration-300 rounded-xl">
+                        <div class="flex flex-col items-center space-y-3 bg-white shadow-2xl rounded-2xl px-8 py-6 border border-gray-100">
+                            <div class="relative flex items-center justify-center">
+                                <div class="w-12 h-12 border-4 border-[#e96a25]/20 border-t-[#e96a25] rounded-full animate-spin"></div>
+                                <svg class="w-5 h-5 text-[#e96a25] absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-sm font-bold text-gray-800 tracking-wide">Updating Catalogue...</p>
+                        </div>
+                    </div>
+                </Transition>
+
+                <!-- Product Grid -->
+                <TransitionGroup 
+                    name="list" 
+                    tag="div" 
+                    :class="[
+                        viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative' : 'flex flex-col space-y-4 relative',
+                        isLoading ? 'opacity-40 saturate-50 transition-all duration-500 select-none pointer-events-none' : 'transition-all duration-300'
+                    ]"
+                >
                 <Link v-for="product in products" :key="product.id" :href="route('catalog.show', product.id)"
                      :class="viewMode === 'grid' ? 'flex-col' : 'flex-row items-center p-6'"
                      class="bg-white border border-gray-100 rounded-xl p-4 flex hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
@@ -410,8 +477,18 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                     <!-- Details -->
                     <div class="flex-grow flex flex-col" :class="viewMode === 'list' ? 'justify-center' : ''">
                         <h4 class="text-base font-bold text-gray-900 leading-tight mb-1">{{ product.name }}</h4>
-                        <div class="text-xs text-gray-500 mb-2" v-if="viewMode === 'list'">
-                            {{ product.sku }} | {{ product.brand || 'No Brand' }}
+                        <div class="text-xs text-gray-500 mb-2 flex flex-wrap items-center gap-x-1.5">
+                            <span class="font-mono">{{ product.sku }}</span>
+                            <span class="text-gray-300">|</span>
+                            <span>{{ product.brand || 'No Brand' }}</span>
+                            <template v-if="product.uom">
+                                <span class="text-gray-300">|</span>
+                                <span class="text-[#e96a25] font-semibold">UOM: {{ product.uom }}</span>
+                            </template>
+                            <template v-if="product.minimum_order > 1">
+                                <span class="text-gray-300">|</span>
+                                <span class="text-red-600 font-bold">Min: {{ product.minimum_order }}</span>
+                            </template>
                         </div>
                         
                         <!-- Description -->
@@ -429,7 +506,7 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                                 <!-- Quantity Selector -->
                                 <div class="flex items-center border border-gray-300 rounded h-10 w-24 flex-shrink-0 bg-white hover:border-[#e96a25] transition-colors">
                                     <button @click.prevent="updateQuantity(product.id, -1)" class="px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3">-</button>
-                                    <input type="number" @click.prevent v-model.number="quantities[product.id]" min="1" class="w-1/3 text-center text-sm border-none focus:ring-0 p-0 font-medium" />
+                                    <input type="number" @click.prevent v-model.number="quantities[product.id]" :min="Math.max(1, product.minimum_order || 1)" @change="validateQuantity(product)" class="w-1/3 text-center text-sm border-none focus:ring-0 p-0 font-medium" />
                                     <button @click.prevent="updateQuantity(product.id, 1)" class="px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3">+</button>
                                 </div>
 
@@ -457,6 +534,8 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                 <p class="text-lg font-medium">No products match your filters.</p>
                 <button @click="filterState.brands = []; filterState.category = null; filterState.q = ''" class="mt-4 text-[#e96a25] hover:underline font-medium">Clear all filters</button>
             </div>
+
+            </div> <!-- END Interactive Product Catalog Container -->
 
         </div>
     </StoreLayout>

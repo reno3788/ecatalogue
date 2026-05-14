@@ -231,11 +231,21 @@ const cancelEdit = () => {
     editForm.reset();
 };
 
+const alertModal = ref({
+    show: false,
+    title: '',
+    message: ''
+});
+
 const submitUpdate = (id) => {
     // Strict client-side validation
     const rawPrice = editForm.custom_price;
     if (!rawPrice || isNaN(rawPrice) || parseFloat(rawPrice) < 0) {
-        alert('Price field must be a valid numeric value.');
+        alertModal.value = {
+            show: true,
+            title: 'Invalid Price Value',
+            message: 'The price field must contain a valid positive numeric value.'
+        };
         return;
     }
 
@@ -810,6 +820,18 @@ const getPriceDiffBadge = (item) => {
             confirmLabel="Confirm Removal"
             @close="showDeleteModal = false; priceToDelete = null"
             @confirm="executeDeletePrice"
+        />
+
+        <!-- Input Validation Warning Modal -->
+        <ConfirmationModal
+            :show="alertModal.show"
+            :title="alertModal.title"
+            :message="alertModal.message"
+            type="warning"
+            confirmLabel="Okay"
+            :hide-cancel="true"
+            @confirm="alertModal.show = false"
+            @close="alertModal.show = false"
         />
     </AuthenticatedLayout>
 </template>

@@ -44,6 +44,14 @@ class CartController extends Controller
         $user = auth()->user();
         $product = Product::findOrFail($request->product_id);
 
+        // Validate Minimum Order constraint
+        $minOrder = max(1, $product->minimum_order ?? 1);
+        if ($request->quantity < $minOrder) {
+            return redirect()->back()->withErrors([
+                'quantity' => "Quantity for {$product->name} cannot be below minimum order of {$minOrder}."
+            ]);
+        }
+
         // Resolve Price
         $price = $product->base_price;
         if ($user && $user->company_id) {
@@ -74,6 +82,35 @@ class CartController extends Controller
         }
 
         return redirect()->back()->with('success', 'Product added to cart!');
+    }
+
+    public function update(Request $request, CartItem $cartItem)
+    {
+        $user = auth()->user();
+        if ($user && $cartItem->cart->user_id !== $user->id) {
+            abort(403);
+        } else if (!$user && $cartItem->cart->session_id !== session()->getId()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'quantity' => 'required|integer|min:1',
+        ]);
+
+        $product = $cartItem->product;
+        $minOrder = max(1, $product->minimum_order ?? 1);
+
+        if ($request->quantity < $minOrder) {
+            return redirect()->back()->withErrors([
+                'quantity' => "Quantity for {$product->name} cannot be below minimum order of {$minOrder}."
+            ]);
+        }
+
+        $cartItem->update([
+            'quantity' => $request->quantity
+        ]);
+
+        return redirect()->back()->with('success', 'Cart updated successfully!');
     }
 
     public function remove(CartItem $cartItem)

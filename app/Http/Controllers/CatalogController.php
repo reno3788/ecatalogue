@@ -43,9 +43,13 @@ class CatalogController extends Controller
 
         // Filters
         if ($request->has('category') && $request->category) {
-            $query->whereHas('categories', function ($q) use ($request) {
-                $q->where('slug', $request->category);
-            });
+            $category = \App\Models\Category::where('slug', $request->category)->first();
+            if ($category) {
+                $categoryIds = $category->getAllDescendantIds();
+                $query->whereHas('categories', function ($q) use ($categoryIds) {
+                    $q->whereIn('categories.id', $categoryIds);
+                });
+            }
         }
 
         if ($request->has('q') && $request->q) {
