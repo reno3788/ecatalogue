@@ -17,6 +17,15 @@ class Order extends Model
         'punchout_po_reference',
         'total',
         'rejection_reason',
+        'deployment_mode',
+        'po_date',
+        'currency',
+        'shipping_name',
+        'shipping_email',
+        'shipping_address',
+        'billing_name',
+        'billing_email',
+        'billing_address',
     ];
 
     public function company()

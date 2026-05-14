@@ -185,14 +185,14 @@ const getStatusBadgeClass = (status) => {
 
                 <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-gray-100">
+                <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-gray-100">
                     
                     <div v-if="loadingDetails" class="p-16 flex flex-col items-center justify-center">
                         <div class="w-10 h-10 border-4 border-[#e96a25]/20 border-t-[#e96a25] rounded-full animate-spin"></div>
                     </div>
 
-                    <div v-else-if="selectedOrder" class="p-6">
-                        <div class="flex justify-between items-start border-b border-dashed border-gray-200 pb-4 mb-4">
+                    <div v-else-if="selectedOrder" class="p-6 space-y-6">
+                        <div class="flex justify-between items-start border-b border-dashed border-gray-200 pb-4">
                             <div>
                                 <h2 class="text-2xl font-black text-[#1a2b4c]">Order Receipt</h2>
                                 <p class="text-sm text-gray-500 mt-0.5">Ref #{{ String(selectedOrder.id).padStart(6, '0') }}</p>
@@ -203,41 +203,102 @@ const getStatusBadgeClass = (status) => {
                         </div>
 
                         <!-- Display rejection reason if present -->
-                        <div v-if="selectedOrder.status === 'Rejected' && selectedOrder.rejection_reason" class="bg-red-50 border border-red-100 rounded-xl p-4 mb-6 text-sm text-red-800">
+                        <div v-if="selectedOrder.status === 'Rejected' && selectedOrder.rejection_reason" class="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-800">
                             <div class="font-bold text-xs uppercase text-red-600 mb-1">Reason for Rejection</div>
                             "{{ selectedOrder.rejection_reason }}"
                         </div>
 
-                        <div class="text-xs font-bold text-gray-400 uppercase mb-4 flex justify-between items-center">
-                            <span>Items Breakdown</span>
-                            <span class="normal-case font-medium">{{ new Date(selectedOrder.created_at).toLocaleDateString() }}</span>
+                        <!-- cXML Integration & B2B Details -->
+                        <div v-if="selectedOrder.punchout_po_reference" class="bg-[#1a2b4c]/5 border border-[#1a2b4c]/10 rounded-xl p-4 space-y-3">
+                            <div class="flex items-center justify-between border-b border-[#1a2b4c]/10 pb-2">
+                                <h4 class="font-extrabold text-xs text-[#1a2b4c] uppercase tracking-wider flex items-center">
+                                    <svg class="w-4 h-4 mr-1 text-[#e96a25]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    B2B Integration Info
+                                </h4>
+                                <span v-if="selectedOrder.deployment_mode" :class="['px-2 py-0.5 rounded text-[10px] font-black uppercase border', selectedOrder.deployment_mode === 'test' ? 'bg-amber-100 border-amber-200 text-amber-800' : 'bg-green-100 border-green-200 text-green-800']">
+                                    {{ selectedOrder.deployment_mode }}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                    <span class="text-[10px] font-extrabold text-gray-400 block uppercase tracking-wider">ERP PO Ref</span>
+                                    <span class="font-black font-mono text-[#1a2b4c] text-xs">{{ selectedOrder.punchout_po_reference }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-extrabold text-gray-400 block uppercase tracking-wider">Payload Date</span>
+                                    <span class="font-semibold text-gray-600 text-xs">{{ selectedOrder.po_date || '-' }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-extrabold text-gray-400 block uppercase tracking-wider">Settlement CCY</span>
+                                    <span class="font-black text-gray-800 text-xs">{{ selectedOrder.currency || 'USD' }}</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <ul class="space-y-4">
-                            <li v-for="item in selectedOrder.items" :key="item.id" class="flex justify-between text-sm">
-                                <div class="flex-1 pr-4">
-                                    <template v-if="item.product">
-                                        <Link :href="route('catalog.show', item.product.id)" class="font-bold text-gray-800 hover:text-[#e96a25] hover:underline transition">{{ item.product.name }}</Link>
-                                    </template>
-                                    <template v-else>
-                                        <div class="font-bold text-gray-400">Deleted product</div>
-                                    </template>
-                                    <div class="text-xs text-gray-400 mt-0.5">{{ item.quantity }} x {{ formatCurrency(item.price) }}</div>
-                                </div>
-                                <div class="font-bold text-[#1a2b4c] whitespace-nowrap">
-                                    {{ formatCurrency(item.price * item.quantity) }}
-                                </div>
-                            </li>
-                        </ul>
+                        <!-- Address Blocks -->
+                        <div v-if="selectedOrder.shipping_address || selectedOrder.billing_address" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Shipping Address -->
+                            <div v-if="selectedOrder.shipping_address" class="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-gray-400 mb-2.5 flex items-center">
+                                    <svg class="w-3.5 h-3.5 mr-1 text-[#e96a25]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    Delivery Address
+                                </h4>
+                                <div class="text-xs text-gray-800 font-black" v-if="selectedOrder.shipping_name">{{ selectedOrder.shipping_name }}</div>
+                                <div class="text-[10px] text-gray-500 font-medium mb-1.5" v-if="selectedOrder.shipping_email">{{ selectedOrder.shipping_email }}</div>
+                                <div class="text-xs text-gray-600 whitespace-pre-line leading-relaxed font-semibold bg-white border border-gray-100 p-2 rounded-lg">{{ selectedOrder.shipping_address }}</div>
+                            </div>
+                            <!-- Billing Address -->
+                            <div v-if="selectedOrder.billing_address" class="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                                <h4 class="text-xs font-black uppercase tracking-wider text-gray-400 mb-2.5 flex items-center">
+                                    <svg class="w-3.5 h-3.5 mr-1 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    Billing Address
+                                </h4>
+                                <div class="text-xs text-gray-800 font-black" v-if="selectedOrder.billing_name">{{ selectedOrder.billing_name }}</div>
+                                <div class="text-[10px] text-gray-500 font-medium mb-1.5" v-if="selectedOrder.billing_email">{{ selectedOrder.billing_email }}</div>
+                                <div class="text-xs text-gray-600 whitespace-pre-line leading-relaxed font-semibold bg-white border border-gray-100 p-2 rounded-lg">{{ selectedOrder.billing_address }}</div>
+                            </div>
+                        </div>
 
-                        <div class="mt-6 border-t border-gray-100 pt-4">
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-gray-500 text-sm font-semibold">Subtotal</span>
+                        <div>
+                            <div class="text-xs font-bold text-gray-400 uppercase mb-3 flex justify-between items-center border-b border-gray-50 pb-2">
+                                <span>Items Breakdown</span>
+                                <span class="normal-case font-medium">{{ new Date(selectedOrder.created_at).toLocaleDateString() }}</span>
+                            </div>
+
+                            <ul class="divide-y divide-gray-50 border border-gray-50 rounded-xl overflow-hidden bg-gray-50/30">
+                                <li v-for="item in selectedOrder.items" :key="item.id" class="flex justify-between text-sm p-3 hover:bg-white transition duration-150">
+                                    <div class="flex-1 pr-4">
+                                        <template v-if="item.product">
+                                            <Link :href="route('catalog.show', item.product.id)" class="font-bold text-gray-800 hover:text-[#e96a25] hover:underline transition">{{ item.product.name }}</Link>
+                                            <div class="text-[11px] text-gray-400 font-medium mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
+                                                <span class="font-mono">SKU: {{ item.product.sku }}</span>
+                                                <span v-if="item.uom" class="text-[#e96a25] font-black">• {{ item.uom }}</span>
+                                                <span v-if="item.classification" class="text-indigo-600 italic">• UN: {{ item.classification }}</span>
+                                            </div>
+                                            <div v-if="item.manufacturer_part_id || item.manufacturer_name" class="text-[9px] text-gray-400 uppercase font-semibold tracking-wider mt-0.5">
+                                                MFG: {{ item.manufacturer_name || '-' }} [{{ item.manufacturer_part_id || '-' }}]
+                                            </div>
+                                        </template>
+                                        <template v-else>
+                                            <div class="font-bold text-gray-400">Deleted product</div>
+                                        </template>
+                                        <div class="text-[10px] font-semibold text-gray-500 mt-1 bg-white inline-block px-1.5 py-0.5 rounded border border-gray-100">{{ item.quantity }} x {{ formatCurrency(item.price) }}</div>
+                                    </div>
+                                    <div class="font-black text-[#1a2b4c] whitespace-nowrap text-right flex items-center">
+                                        {{ formatCurrency(item.price * item.quantity) }}
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-gray-50/50 border border-gray-100 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-gray-500 font-semibold">Subtotal</span>
                                 <span class="text-gray-700 font-bold">{{ formatCurrency(selectedOrder.total) }}</span>
                             </div>
-                            <div class="flex justify-between items-center border-t border-gray-100 pt-3 mt-2">
-                                <span class="text-[#1a2b4c] font-black text-lg">Total Payment</span>
-                                <span class="text-2xl font-black text-[#e96a25]">{{ formatCurrency(selectedOrder.total) }}</span>
+                            <div class="flex justify-between items-center border-t border-dashed border-gray-200 pt-3">
+                                <span class="text-[#1a2b4c] font-black text-base">Grand Total</span>
+                                <span class="text-xl font-black text-[#e96a25]">{{ formatCurrency(selectedOrder.total) }}</span>
                             </div>
                         </div>
 

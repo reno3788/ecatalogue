@@ -78,18 +78,38 @@ class PunchOutCxmlController extends Controller
             }
 
             $orderId = (string) ($orderRequest->OrderRequestHeader['orderID'] ?? '');
+            $poDate = (string) ($orderRequest->OrderRequestHeader['orderDate'] ?? '');
+            $deploymentMode = (string) ($xml->Request['deploymentMode'] ?? 'production');
+            $currency = (string) ($orderRequest->OrderRequestHeader->Total->Money['currency'] ?? 'USD');
             $totalAmount = (float) ($orderRequest->OrderRequestHeader->Total->Money ?? 0);
+
+            // Parse nested structured addresses
+            $shippingInfo = $this->parseAddress($orderRequest->OrderRequestHeader->ShipTo->Address ?? null);
+            $billingInfo = $this->parseAddress($orderRequest->OrderRequestHeader->BillTo->Address ?? null);
 
             // Start explicit transactional block
             DB::beginTransaction();
 
-            // Persist Order object
+            // Persist Order object with full cXML header context
             $order = Order::create([
                 'company_id' => $company->id,
                 'user_id' => $user ? $user->id : null,
                 'status' => 'approved', // Coming directly from procurement ERP, treat as approved
                 'punchout_po_reference' => $orderId,
+                'po_date' => $poDate,
+                'deployment_mode' => $deploymentMode,
+                'currency' => substr(strtoupper($currency), 0, 3),
                 'total' => $totalAmount,
+                
+                // Add fully extracted shipping details
+                'shipping_name' => $shippingInfo['name'],
+                'shipping_email' => $shippingInfo['email'],
+                'shipping_address' => $shippingInfo['address'],
+                
+                // Add fully extracted billing details
+                'billing_name' => $billingInfo['name'],
+                'billing_email' => $billingInfo['email'],
+                'billing_address' => $billingInfo['address'],
             ]);
 
             // Iterate individual LineItems
@@ -97,7 +117,14 @@ class PunchOutCxmlController extends Controller
             foreach ($orderRequest->ItemOut as $itemOut) {
                 $sku = (string) ($itemOut->ItemID->SupplierPartID ?? '');
                 $qty = (int) ($itemOut['quantity'] ?? 1);
-                $price = (float) ($itemOut->ItemDetail->UnitPrice->Money ?? 0);
+                
+                // Extract B2B specialized item details
+                $detail = $itemOut->ItemDetail;
+                $price = (float) ($detail->UnitPrice->Money ?? 0);
+                $uom = (string) ($detail->UnitOfMeasure ?? null);
+                $classification = (string) ($detail->Classification ?? null);
+                $mfgPartId = (string) ($detail->ManufacturerPartID ?? null);
+                $mfgName = (string) ($detail->ManufacturerName ?? null);
 
                 $product = Product::where('sku', $sku)->first();
 
@@ -106,6 +133,10 @@ class PunchOutCxmlController extends Controller
                     'product_id' => $product ? $product->id : null,
                     'quantity' => $qty,
                     'price' => $price,
+                    'uom' => $uom,
+                    'classification' => $classification,
+                    'manufacturer_part_id' => $mfgPartId,
+                    'manufacturer_name' => $mfgName,
                 ]);
 
                 $actualTotal += ($qty * $price);
@@ -130,6 +161,59 @@ class PunchOutCxmlController extends Controller
             ]);
             return $this->cxmlErrorResponse('500', 'Internal Error', $e->getMessage());
         }
+    }
+
+    /**
+     * Helper to robustly compile standard cXML nested Address constructs.
+     */
+    protected function parseAddress($addressNode)
+    {
+        if (!$addressNode) {
+            return ['name' => null, 'email' => null, 'address' => null];
+        }
+
+        $name = (string) ($addressNode->Name ?? '');
+        $email = (string) ($addressNode->Email ?? '');
+        
+        $lines = [];
+        if (isset($addressNode->PostalAddress)) {
+            $pa = $addressNode->PostalAddress;
+            
+            // Some standard cXML formats include DeliverTo inside PostalAddress
+            if (!empty((string)($pa->DeliverTo ?? ''))) {
+                $lines[] = 'Deliver To: ' . (string) $pa->DeliverTo;
+            }
+            
+            if (!empty((string)($pa->Street ?? ''))) {
+                $lines[] = (string) $pa->Street;
+            }
+            
+            $cityLine = [];
+            if (!empty((string)($pa->City ?? ''))) {
+                $cityLine[] = (string) $pa->City;
+            }
+            if (!empty((string)($pa->State ?? ''))) {
+                $cityLine[] = (string) $pa->State;
+            }
+            if (!empty((string)($pa->PostalCode ?? ''))) {
+                $cityLine[] = (string) $pa->PostalCode;
+            }
+            
+            if (count($cityLine) > 0) {
+                $lines[] = implode(', ', $cityLine);
+            }
+            
+            if (!empty((string)($pa->Country ?? ''))) {
+                $iso = (string) ($pa->Country['isoCountryCode'] ?? '');
+                $lines[] = (string) $pa->Country . (!empty($iso) ? " ({$iso})" : '');
+            }
+        }
+
+        return [
+            'name' => !empty($name) ? trim($name) : null,
+            'email' => !empty($email) ? trim($email) : null,
+            'address' => count($lines) > 0 ? implode("\n", $lines) : null,
+        ];
     }
 
     /**
