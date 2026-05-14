@@ -20,15 +20,6 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\CompanyController;
 
-
-
-
-
-
-
-
-
-
 Route::get('/', [CatalogController::class, 'index'])->name('catalog.index');
 Route::get('/products/{product}', [CatalogController::class, 'show'])->name('catalog.show');
 
