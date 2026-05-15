@@ -12,7 +12,7 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::withCount('products')->get();
+        $categories = Category::getWithRecursiveProductCounts();
         return Inertia::render('Admin/Categories/Index', [
             'categories' => $categories,
         ]);
@@ -155,7 +155,7 @@ class CategoryController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Category hierarchy updated successfully.',
-            'categories' => Category::withCount('products')->get()
+            'categories' => Category::getWithRecursiveProductCounts()
         ]);
     }
 

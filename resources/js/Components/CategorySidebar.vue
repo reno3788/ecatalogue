@@ -9,8 +9,19 @@ const props = defineProps({
 
 const selectedCategoryId = defineModel('selectedCategoryId', { default: null });
 
-const rootCategories = computed(() => props.categories.filter(c => !c.parent_id));
-const getCategoryChildren = (pid) => props.categories.filter(c => Number(c.parent_id) === Number(pid));
+const rootCategories = computed(() => {
+    return props.categories
+        .filter(c => !c.parent_id)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+});
+
+const getCategoryChildren = (pid) => {
+    return props.categories
+        .filter(c => Number(c.parent_id) === Number(pid))
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+};
 
 const expandedCategories = ref([]);
 const toggleExpand = (id) => {
@@ -41,7 +52,7 @@ watch(selectedCategoryId, (newId) => {
             <span class="text-[10px] bg-[#e96a25]/10 text-[#e96a25] px-2 py-0.5 rounded-full font-bold">{{ categories.length }}</span>
         </div>
 
-        <div class="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
+        <div class="space-y-1.5 max-h-[480px] overflow-y-auto overflow-x-hidden pr-1">
             <!-- All Categories -->
             <button
                 @click="selectedCategoryId = null"

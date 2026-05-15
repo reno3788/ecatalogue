@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -16,6 +16,12 @@ const formatCurrency = (val) => {
     const currency = page.props.appSettings?.currency || 'EUR';
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(val); }
     catch (e) { return `${currency} ${Number(val).toFixed(2)}`; }
+};
+
+const isImageAttachment = (url) => {
+    if (!url) return false;
+    const extension = url.split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(extension);
 };
 
 // Filter states
@@ -61,6 +67,23 @@ const closeModal = () => {
     showModal.value = false;
     setTimeout(() => { selectedOrder.value = null; }, 300);
 };
+
+const checkOpenOrderParameter = () => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const openOrderId = params.get('open_order');
+    if (openOrderId) {
+        openDetails(openOrderId);
+    }
+};
+
+onMounted(() => {
+    checkOpenOrderParameter();
+});
+
+watch(() => page.url, () => {
+    checkOpenOrderParameter();
+});
 
 const getStatusBadgeClass = (status) => {
     switch(status) {
@@ -137,7 +160,9 @@ const getStatusBadgeClass = (status) => {
                         <tbody class="divide-y divide-gray-50 bg-white">
                             <tr v-for="order in orders.data" :key="order.id" class="hover:bg-gray-50/50 transition-colors duration-150">
                                 <td class="px-6 py-5">
-                                    <span class="font-black text-gray-900 text-sm">#{{ String(order.id).padStart(6, '0') }}</span>
+                                    <button @click="openDetails(order.id)" class="font-black text-gray-900 hover:text-[#e96a25] transition-colors border-b border-dashed border-gray-300 hover:border-[#e96a25] text-left text-sm">
+                                        #{{ String(order.id).padStart(6, '0') }}
+                                    </button>
                                 </td>
                                 <td class="px-6 py-5 text-sm font-medium text-gray-600">
                                     {{ new Date(order.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}
@@ -235,6 +260,41 @@ const getStatusBadgeClass = (status) => {
                             </div>
                         </div>
 
+                        <!-- PO Attachment Link Section -->
+                        <div v-if="selectedOrder.po_attachment" class="bg-violet-50/50 border border-violet-100 rounded-xl p-3.5 mb-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 bg-violet-100 rounded-lg flex items-center justify-center text-violet-600 flex-shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <div class="truncate">
+                                    <div class="text-xs font-black text-[#1a2b4c] uppercase tracking-wider">PO Attachment</div>
+                                    <div class="text-[11px] text-violet-700 font-medium truncate max-w-[250px]">{{ selectedOrder.po_attachment.split('/').pop() }}</div>
+                                </div>
+                            </div>
+                            <a 
+                                :href="selectedOrder.po_attachment" 
+                                target="_blank"
+                                class="px-3.5 py-2 bg-white border border-violet-200 text-violet-600 text-xs font-bold rounded-lg hover:bg-violet-50 transition duration-200 shadow-sm hover:shadow-md flex items-center gap-1.5 flex-shrink-0"
+                            >
+                                <span>View</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            </a>
+                        </div>
+
+                        <!-- Clickable Thumbnail Preview for Photo PO -->
+                        <div v-if="selectedOrder.po_attachment && isImageAttachment(selectedOrder.po_attachment)" class="mb-6">
+                            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Photo Preview</div>
+                            <a :href="selectedOrder.po_attachment" target="_blank" class="block group relative border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all max-w-xs">
+                                <img :src="selectedOrder.po_attachment" class="w-full h-auto max-h-48 object-cover hover:scale-105 transition-transform duration-300" alt="PO Attachment Image" />
+                                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    View Full Image
+                                </div>
+                            </a>
+                        </div>
+
                         <!-- Address Blocks -->
                         <div v-if="selectedOrder.shipping_address || selectedOrder.billing_address" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <!-- Shipping Address -->
@@ -269,7 +329,7 @@ const getStatusBadgeClass = (status) => {
                                 <li v-for="item in selectedOrder.items" :key="item.id" class="flex justify-between text-sm p-3 hover:bg-white transition duration-150">
                                     <div class="flex-1 pr-4">
                                         <template v-if="item.product">
-                                            <Link :href="route('catalog.show', item.product.id)" class="font-bold text-gray-800 hover:text-[#e96a25] hover:underline transition">{{ item.product.name }}</Link>
+                                            <Link :href="route('catalog.show', { product: item.product.id, origin: 'orders', order_id: selectedOrder.id })" class="font-bold text-gray-800 hover:text-[#e96a25] hover:underline transition">{{ item.product.name }}</Link>
                                             <div class="text-[11px] text-gray-400 font-medium mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 items-center">
                                                 <span class="font-mono">SKU: {{ item.product.sku }}</span>
                                                 <span v-if="item.product.uom" class="text-[#e96a25] font-black">• UOM: {{ item.product.uom }}</span>

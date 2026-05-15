@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 
 const props = defineProps({
     category: {
@@ -26,6 +27,11 @@ const submit = () => {
         form.post(route('admin.categories.store'));
     }
 };
+
+const breadcrumbItems = [
+    { label: 'Dashboard', href: route('admin.dashboard'), icon: 'dashboard' },
+    { label: 'Categories', href: route('admin.categories.index') },
+];
 </script>
 
 <template>
@@ -33,12 +39,15 @@ const submit = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ isEditing ? 'Edit Category' : 'Add Category' }}
-            </h2>
+            <div class="flex flex-col gap-2">
+                <h2 class="font-extrabold text-2xl text-gray-900 leading-tight">
+                    {{ isEditing ? 'Edit Category' : 'Add Category' }}
+                </h2>
+                <Breadcrumbs :items="breadcrumbItems" />
+            </div>
         </template>
 
-        <div class="py-12">
+        <div class="py-1">
             <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                     <form @submit.prevent="submit" class="space-y-4">

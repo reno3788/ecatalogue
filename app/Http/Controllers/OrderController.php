@@ -74,9 +74,15 @@ class OrderController extends Controller
             abort(403);
         }
 
-        $request->validate([
+        $rules = [
             'status' => 'required|in:PO,Completed',
-        ]);
+        ];
+
+        if ($request->input('status') === 'PO') {
+            $rules['po_attachment'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:5120';
+        }
+
+        $request->validate($rules);
 
         // Double safeguard: Users can only advance their permitted states
         if ($request->status === 'PO' && $order->status !== 'Quotation') {
@@ -86,7 +92,14 @@ class OrderController extends Controller
             return back()->withErrors(['status' => 'Receipt confirmation is only permitted after the order is shipped.']);
         }
 
-        $order->update(['status' => $request->status]);
+        $updateData = ['status' => $request->status];
+
+        if ($request->hasFile('po_attachment')) {
+            $path = $request->file('po_attachment')->store('po_attachments', 'public');
+            $updateData['po_attachment'] = '/storage/' . $path;
+        }
+
+        $order->update($updateData);
 
         return back()->with([
             'flash_type' => 'success',

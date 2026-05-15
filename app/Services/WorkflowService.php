@@ -184,7 +184,61 @@ class WorkflowService
             }
         }
 
-        // 3. Reconsolidate remaining vacancy artifacts back into framework collection
         return collect($stepsArray);
+    }
+
+    /**
+     * Fetches list of Submitted orders that currently require explicit approval from the user.
+     */
+    public function getPendingApprovalsForUser(User $user)
+    {
+        // Supplier approvers or non-admin buyers without company might see distinct sets.
+        // Fetch all Submitted orders which could trigger workflow matching
+        $orders = Order::where('status', 'Submitted')
+            ->with(['company'])
+            ->get();
+
+        $pending = [];
+        foreach ($orders as $order) {
+            if ($this->canUserApprove($order, $user)) {
+                $pending[] = [
+                    'id' => $order->id,
+                    'company_name' => $order->company ? $order->company->name : 'N/A',
+                    'total' => $order->total,
+                    'currency' => $order->currency ?: 'EUR',
+                    'created_at' => $order->created_at->diffForHumans()
+                ];
+            }
+        }
+        
+        return $pending;
+    }
+
+    /**
+     * Fetches list of RFQ orders that need to be submitted for approval.
+     * Only applicable to roles that can process orders (admins and suppliers).
+     */
+    public function getPendingRfqsForUser(User $user)
+    {
+        if (!$user->hasAnyRole(['admin', 'supplier_processor', 'supplier_approver'])) {
+            return [];
+        }
+
+        $orders = Order::where('status', 'RFQ')
+            ->with(['company'])
+            ->get();
+
+        $pending = [];
+        foreach ($orders as $order) {
+            $pending[] = [
+                'id' => $order->id,
+                'company_name' => $order->company ? $order->company->name : 'N/A',
+                'total' => $order->total,
+                'currency' => $order->currency ?: 'EUR',
+                'created_at' => $order->created_at->diffForHumans()
+            ];
+        }
+        
+        return $pending;
     }
 }

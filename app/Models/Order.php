@@ -14,6 +14,7 @@ class Order extends Model
         'company_id',
         'user_id',
         'status',
+        'po_attachment',
         'punchout_po_reference',
         'total',
         'rejection_reason',

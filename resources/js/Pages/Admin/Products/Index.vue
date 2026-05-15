@@ -113,9 +113,6 @@ const executeDeleteProduct = () => {
             </div>
         </template>
 
-        <div class="py-10">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
                 <!-- Flash success -->
                 <div v-if="$page.props.flash?.success" class="mb-6 bg-green-50 border border-green-100 rounded-2xl px-5 py-3 text-sm text-green-700 font-semibold flex items-center space-x-2">
                     <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
@@ -229,8 +226,6 @@ const executeDeleteProduct = () => {
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
         <!-- Upload Modal -->
         <div v-if="isUploadModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">

@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 
 const props = defineProps({
     product: {
@@ -113,6 +114,11 @@ const submit = () => {
         form.post(route('admin.products.store'));
     }
 };
+
+const breadcrumbItems = [
+    { label: 'Dashboard', href: route('admin.dashboard'), icon: 'dashboard' },
+    { label: 'Products', href: route('admin.products.index') },
+];
 </script>
 
 <template>
@@ -120,12 +126,15 @@ const submit = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ isEditing ? 'Edit Product' : 'Add Product' }}
-            </h2>
+            <div class="flex flex-col gap-2">
+                <h2 class="font-extrabold text-2xl text-gray-900 leading-tight">
+                    {{ isEditing ? 'Edit Product' : 'Add Product' }}
+                </h2>
+                <Breadcrumbs :items="breadcrumbItems" />
+            </div>
         </template>
 
-        <div class="py-12">
+        <div class="py-1">
             <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                     <form @submit.prevent="submit" class="space-y-4">
@@ -140,7 +149,11 @@ const submit = () => {
                             <input v-model="form.name" type="text" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]" required>
                             <div v-if="form.errors.name" class="text-red-500 text-xs mt-1">{{ form.errors.name }}</div>
                         </div>
-
+                       <div>
+                            <label class="block text-sm font-medium text-gray-700">Description</label>
+                            <textarea v-model="form.description" rows="4" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]"></textarea>
+                            <div v-if="form.errors.description" class="text-red-500 text-xs mt-1">{{ form.errors.description }}</div>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Base Price</label>
                             <input v-model="form.base_price" type="number" step="0.01" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]" required>
@@ -256,12 +269,6 @@ const submit = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Description</label>
-                            <textarea v-model="form.description" rows="4" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]"></textarea>
-                            <div v-if="form.errors.description" class="text-red-500 text-xs mt-1">{{ form.errors.description }}</div>
                         </div>
 
                         <div class="flex justify-end">

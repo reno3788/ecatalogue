@@ -37,6 +37,8 @@ class HandleInertiaRequests extends Middleware
                 'roles' => $request->user() ? $request->user()->getRoleNames()->values()->all() : [],
             ],
             'cartItemsCount' => $this->getCartItemsCount($request),
+            'pendingApprovals' => $request->user() ? app(\App\Services\WorkflowService::class)->getPendingApprovalsForUser($request->user()) : [],
+            'pendingRfqs' => $request->user() ? app(\App\Services\WorkflowService::class)->getPendingRfqsForUser($request->user()) : [],
             'appSettings' => \App\Models\AppSetting::first(),
             'flash' => [
                 'type' => $request->session()->get('flash_type'),

@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import axios from 'axios';
 
 const props = defineProps({
@@ -17,6 +17,12 @@ const formatCurrency = (val) => {
     const currency = page.props.appSettings?.currency || 'EUR';
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(val); }
     catch (e) { return `${currency} ${Number(val).toFixed(2)}`; }
+};
+
+const isImageAttachment = (url) => {
+    if (!url) return false;
+    const extension = url.split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(extension);
 };
 
 // Filters state
@@ -64,6 +70,23 @@ const closeModal = () => {
     showModal.value = false;
     setTimeout(() => { selectedOrder.value = null; }, 300);
 };
+
+const checkOpenOrderParameter = () => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const openOrderId = params.get('open_order');
+    if (openOrderId) {
+        openDetails(openOrderId);
+    }
+};
+
+onMounted(() => {
+    checkOpenOrderParameter();
+});
+
+watch(() => page.url, () => {
+    checkOpenOrderParameter();
+});
 
 // Update Status form helper
 const statusForm = useForm({
@@ -279,7 +302,9 @@ const getStatusBadgeClass = (status) => {
                                         class="rounded border-gray-300 text-[#e96a25] focus:ring-[#e96a25]/20 shadow-sm" />
                                 </td>
                                 <td class="px-6 py-5">
-                                    <div class="font-black text-[#1a2b4c]">#{{ String(order.id).padStart(6, '0') }}</div>
+                                    <button @click="openDetails(order.id)" class="font-black text-[#1a2b4c] hover:text-[#e96a25] transition-colors border-b border-dashed border-gray-300 hover:border-[#e96a25] text-left">
+                                        #{{ String(order.id).padStart(6, '0') }}
+                                    </button>
                                     <div class="text-xs text-gray-500 mt-0.5 font-medium">
                                         {{ new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}
                                     </div>
@@ -303,10 +328,22 @@ const getStatusBadgeClass = (status) => {
                                     </span>
                                 </td>
                                 <td class="px-6 py-5 text-right">
-                                    <button @click="openDetails(order.id)" 
-                                        class="bg-white border border-gray-200 text-[#1a2b4c] hover:border-[#e96a25] hover:text-[#e96a25] px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition duration-200">
-                                        View / Update
-                                    </button>
+                                    <div class="flex items-center justify-end space-x-2">
+                                        <a v-if="order.po_attachment" 
+                                            :href="order.po_attachment" 
+                                            target="_blank"
+                                            title="View PO Document"
+                                            class="bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 px-3 py-1.5 rounded-lg text-xs font-extrabold shadow-sm transition duration-200 flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span></span>
+                                        </a>
+                                        <button @click="openDetails(order.id)" 
+                                            class="bg-white border border-gray-200 text-[#1a2b4c] hover:border-[#e96a25] hover:text-[#e96a25] px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition duration-200 whitespace-nowrap">
+                                            View / Update
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="props.orders.data.length === 0">
@@ -417,6 +454,44 @@ const getStatusBadgeClass = (status) => {
                                 </div>
                             </div>
 
+                            <!-- PO Attachment Link Section (Uploaded by Buyer) -->
+                            <div v-if="selectedOrder.po_attachment" class="bg-violet-50/50 border border-violet-100 rounded-xl p-4 flex items-center justify-between">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-10 h-10 bg-violet-100 rounded-xl flex items-center justify-center text-violet-600 flex-shrink-0 shadow-sm">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div class="truncate pr-2">
+                                        <div class="text-xs font-black text-[#1a2b4c] uppercase tracking-widest flex items-center gap-1.5">
+                                            Buyer-Signed PO
+                                            <span class="px-2 py-0.5 bg-violet-100 text-violet-700 text-[9px] rounded-full font-bold">Verified</span>
+                                        </div>
+                                        <div class="text-[11px] text-violet-700 font-semibold truncate mt-0.5 max-w-[300px]">{{ selectedOrder.po_attachment.split('/').pop() }}</div>
+                                    </div>
+                                </div>
+                                <a 
+                                    :href="selectedOrder.po_attachment" 
+                                    target="_blank"
+                                    class="px-4 py-2 bg-white border border-violet-200 text-violet-700 text-xs font-black rounded-xl hover:bg-violet-50 transition duration-200 shadow-sm hover:shadow-md flex items-center gap-1.5 flex-shrink-0"
+                                >
+                                    <span>Open Document</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                </a>
+                            </div>
+
+                            <!-- Clickable Thumbnail Preview for Photo PO -->
+                            <div v-if="selectedOrder.po_attachment && isImageAttachment(selectedOrder.po_attachment)" class="mt-4">
+                                <div class="text-xs font-extrabold text-gray-400 uppercase tracking-wider mb-2">Document Preview</div>
+                                <a :href="selectedOrder.po_attachment" target="_blank" class="inline-block group relative border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all max-w-sm">
+                                    <img :src="selectedOrder.po_attachment" class="w-full h-auto max-h-64 object-cover hover:scale-105 transition-transform duration-300" alt="PO Attachment Image" />
+                                    <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        Expand View
+                                    </div>
+                                </a>
+                            </div>
+
                             <!-- Rejection Reason if present -->
                             <div v-if="selectedOrder.status === 'Rejected' && selectedOrder.rejection_reason" class="bg-red-50/50 border border-red-100 rounded-xl p-4 text-sm text-red-800">
                                 <div class="font-bold text-xs uppercase tracking-wider text-red-600 mb-1">Rejection Reason</div>
@@ -443,7 +518,7 @@ const getStatusBadgeClass = (status) => {
                                             <tr v-for="item in selectedOrder.items" :key="item.id">
                                                 <td class="px-4 py-3">
                                                     <template v-if="item.product">
-                                                        <Link :href="route('catalog.show', item.product.id)" class="font-bold text-[#1a2b4c] hover:text-[#e96a25] hover:underline transition">
+                                                        <Link :href="route('catalog.show', { product: item.product.id, origin: 'admin-orders', order_id: selectedOrder.id })" class="font-bold text-[#1a2b4c] hover:text-[#e96a25] hover:underline transition">
                                                             {{ item.product.name }}
                                                         </Link>
                                                         <div class="text-xs text-gray-400 mt-0.5 font-medium flex flex-wrap gap-x-2 gap-y-0.5 items-center">

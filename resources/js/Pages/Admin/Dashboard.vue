@@ -5,6 +5,10 @@ import { ref, computed, watch } from 'vue';
 
 const page = usePage();
 
+const pendingApprovals = computed(() => page.props.pendingApprovals || []);
+const pendingRfqs = computed(() => page.props.pendingRfqs || []);
+const totalTasksCount = computed(() => pendingApprovals.value.length + pendingRfqs.value.length);
+
 const props = defineProps({
     stats: Object,
     orders: Array,
@@ -109,7 +113,7 @@ const getColorForSegment = (label) => {
 
 // Format currency helper
 const formatCurrency = (value) => {
-    const currency = page.props.appSettings?.currency || 'EUR';
+    const currency = page.props.appSettings?.currency || 'IDR';
     try {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency }).format(value);
     } catch (e) {
@@ -119,7 +123,7 @@ const formatCurrency = (value) => {
 
 // Format compact currency helper for dashboards
 const formatCompactCurrency = (value) => {
-    const currency = page.props.appSettings?.currency || 'EUR';
+    const currency = page.props.appSettings?.currency || 'IDR';
     try {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -171,6 +175,75 @@ const formatDate = (dateStr) => {
         </template>
 
         <div class="space-y-8">
+            <!-- Tasks To Do Widget -->
+            <div v-if="totalTasksCount > 0" class="bg-gradient-to-r from-amber-50 to-amber-100/30 rounded-2xl border border-amber-200/60 p-6 shadow-sm animate-fade-in">
+                <div class="flex items-center space-x-2 mb-4">
+                    <div class="bg-amber-500 text-white p-1.5 rounded-lg shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-[#1a2b4c]">Tasks To Do</h3>
+                    <span class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full text-xs font-bold">{{ totalTasksCount }} Action Required</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- 1. Pending Approvals -->
+                    <div 
+                        v-for="item in pendingApprovals" 
+                        :key="'appr-' + item.id"
+                        class="bg-white rounded-xl p-4 border border-amber-100 shadow-sm hover:shadow-md hover:border-amber-300 transition duration-200 flex flex-col justify-between cursor-pointer relative group"
+                        @click="router.visit(route('admin.orders.index', { open_order: item.id }))"
+                    >
+                        <div>
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 uppercase tracking-wide">Approval Signature</span>
+                                <span class="text-[10px] text-gray-400">{{ item.created_at }}</span>
+                            </div>
+                            <p class="text-sm font-bold text-[#1a2b4c] mt-2 truncate">{{ item.company_name }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Order #{{ item.id }} needs your workflow signature to advance.</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
+                            <span class="text-sm font-extrabold text-[#1a2b4c]">{{ formatCurrency(item.total) }}</span>
+                            <button 
+                                type="button"
+                                class="text-xs font-bold text-white bg-[#e96a25] hover:bg-[#d0591b] px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center group-hover:scale-105 transform"
+                            >
+                                Review Order
+                                <svg class="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Pending RFQs to submit -->
+                    <div 
+                        v-for="item in pendingRfqs" 
+                        :key="'rfq-' + item.id"
+                        class="bg-white rounded-xl p-4 border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition duration-200 flex flex-col justify-between cursor-pointer relative group"
+                        @click="router.visit(route('admin.orders.index', { open_order: item.id }))"
+                    >
+                        <div>
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wide">RFQ Submission</span>
+                                <span class="text-[10px] text-gray-400">{{ item.created_at }}</span>
+                            </div>
+                            <p class="text-sm font-bold text-[#1a2b4c] mt-2 truncate">{{ item.company_name }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Order #{{ item.id }} sits in RFQ status and must be submitted.</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
+                            <span class="text-sm font-extrabold text-[#1a2b4c]">{{ formatCurrency(item.total) }}</span>
+                            <button 
+                                type="button"
+                                class="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center group-hover:scale-105 transform"
+                            >
+                                Submit RFQ
+                                <svg class="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 1. Overview Stat Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <!-- Total Products -->

@@ -39,7 +39,9 @@ class CatalogController extends Controller
                     ->get();
 
         // Categories with product count
-        $categories = \App\Models\Category::withCount('products')->orderBy('name')->get();
+        $categories = \App\Models\Category::getWithRecursiveProductCounts(
+            \App\Models\Category::orderBy('name')
+        );
 
         // Filters
         if ($request->has('category') && $request->category) {

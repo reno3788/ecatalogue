@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import StoreLayout from '@/Layouts/StoreLayout.vue';
+import Breadcrumbs from '@/Components/Breadcrumbs.vue';
 import { ref, computed } from 'vue';
 
 const page = usePage();
@@ -85,6 +86,41 @@ const allImages = [
     ...(props.product.images?.map(img => img.image_path) || [])
 ];
 
+const breadcrumbItems = computed(() => {
+    // Fallback for server side render
+    if (typeof window === 'undefined') {
+        return [{ label: 'Catalog', href: route('catalog.index'), icon: 'catalog' }];
+    }
+    
+    const params = new URLSearchParams(window.location.search);
+    const origin = params.get('origin');
+    const orderId = params.get('order_id');
+
+    if (origin === 'orders') {
+        return [
+            { label: 'Dashboard', href: route('dashboard'), icon: 'dashboard' },
+            { label: 'My Orders', href: route('orders.index') },
+            { label: orderId ? `Order #${orderId}` : 'Order Detail', href: route('orders.index', orderId ? { open_order: orderId } : {}) }
+        ];
+    }
+    if (origin === 'dashboard') {
+        return [
+            { label: 'Dashboard', href: route('dashboard'), icon: 'dashboard' },
+            { label: orderId ? `Order #${orderId}` : 'Order Detail', href: route('dashboard', orderId ? { open_order: orderId } : {}) }
+        ];
+    }
+    if (origin === 'admin-orders') {
+        return [
+            { label: 'Dashboard', href: route('admin.dashboard'), icon: 'dashboard' },
+            { label: 'Orders', href: route('admin.orders.index') },
+            { label: orderId ? `Order #${orderId}` : 'Order Detail', href: route('admin.orders.index', orderId ? { open_order: orderId } : {}) }
+        ];
+    }
+    return [
+        { label: 'Catalog', href: route('catalog.index'), icon: 'catalog' }
+    ];
+});
+
 </script>
 
 <template>
@@ -93,11 +129,7 @@ const allImages = [
     <StoreLayout>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             <!-- Breadcrumbs -->
-            <nav class="mb-8 flex text-sm text-gray-500">
-                <Link :href="route('catalog.index')" class="hover:text-[#e96a25] transition-colors">Catalog</Link>
-                <span class="mx-2">/</span>
-                <span class="text-gray-900 font-medium truncate">{{ product.name }}</span>
-            </nav>
+            <Breadcrumbs :items="breadcrumbItems" />
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
                 <!-- Product Images -->
@@ -153,7 +185,7 @@ const allImages = [
                                 {{ product.size }}
                             </div>
                             <div v-if="product.uom">
-                                <span class="font-bold text-gray-900 block">Unit</span>
+                                <span class="font-bold text-gray-900 block">UOM</span>
                                 {{ product.uom }}
                             </div>
                             <div v-if="product.minimum_order > 1">

@@ -1,8 +1,8 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { Head, Link, router, usePage, useForm } from '@inertiajs/vue3';
+import { ref, watch, computed, onMounted } from 'vue';
 import axios from 'axios';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
@@ -20,10 +20,20 @@ const successMessage = ref(page.props.flash?.success || '');
 const showSuccessAlert = ref(!!successMessage.value);
 const dismissAlert = () => { showSuccessAlert.value = false; };
 
+const pendingApprovals = computed(() => page.props.pendingApprovals || []);
+const pendingRfqs = computed(() => page.props.pendingRfqs || []);
+const totalTasksCount = computed(() => pendingApprovals.value.length + pendingRfqs.value.length);
+
 const formatCurrency = (val) => {
     const currency = page.props.appSettings?.currency || 'EUR';
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(val); }
     catch (e) { return `${currency} ${Number(val).toFixed(2)}`; }
+};
+
+const isImageAttachment = (url) => {
+    if (!url) return false;
+    const extension = url.split('.').pop().toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(extension);
 };
 
 // Filter states
@@ -103,16 +113,78 @@ const openDetails = async (orderId) => {
     }
 };
 
+const fileInputError = ref('');
+const selectedFileName = ref('');
+
+const statusForm = useForm({
+    status: '',
+    po_attachment: null,
+    _method: 'PATCH' // Required for file uploads to hit PATCH routes
+});
+
+const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // 5MB Limit = 5 * 1024 * 1024
+    if (file.size > 5242880) {
+        fileInputError.value = 'File exceeds 5MB threshold. Please select a smaller file.';
+        selectedFileName.value = '';
+        statusForm.po_attachment = null;
+        return;
+    }
+    
+    const validExtensions = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!validExtensions.includes(file.type)) {
+        fileInputError.value = 'Unsupported file format. Please upload PDF or valid Image.';
+        selectedFileName.value = '';
+        statusForm.po_attachment = null;
+        return;
+    }
+    
+    fileInputError.value = '';
+    selectedFileName.value = file.name;
+    statusForm.po_attachment = file;
+};
+
 const closeModal = () => {
     showModal.value = false;
-    setTimeout(() => { selectedOrder.value = null; }, 300);
+    setTimeout(() => { 
+        selectedOrder.value = null;
+        statusForm.reset();
+        selectedFileName.value = '';
+        fileInputError.value = '';
+    }, 300);
 };
+
+const checkOpenOrderParameter = () => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const openOrderId = params.get('open_order');
+    if (openOrderId) {
+        openDetails(openOrderId);
+    }
+};
+
+onMounted(() => {
+    checkOpenOrderParameter();
+});
+
+watch(() => page.url, () => {
+    checkOpenOrderParameter();
+});
 
 const isUpdating = ref(false);
 const showStatusConfirmModal = ref(false);
 const pendingStatus = ref('');
 
 const updateOrderStatus = (statusVal) => {
+    // Special requirement: require attachment before updating Quotation to PO
+    if (statusVal === 'PO' && !statusForm.po_attachment) {
+        fileInputError.value = 'You must attach a PDF or Image PO receipt to proceed.';
+        return;
+    }
+    
     pendingStatus.value = statusVal;
     showStatusConfirmModal.value = true;
 };
@@ -122,9 +194,10 @@ const executeStatusUpdate = () => {
 
     const targetUrl = route('orders.update-status', selectedOrder.value.id);
     
-    router.patch(targetUrl, {
-        status: pendingStatus.value
-    }, {
+    statusForm.status = pendingStatus.value;
+    
+    // Use statusForm.post with method override since Inertia router.patch cannot reliably serialize binary files
+    statusForm.post(targetUrl, {
         preserveScroll: true,
         onStart: () => { isUpdating.value = true; },
         onFinish: () => { 
@@ -201,6 +274,75 @@ const getStatusBadgeClass = (status) => {
                     </button>
                 </div>
             </Transition>
+
+            <!-- Tasks To Do Widget -->
+            <div v-if="totalTasksCount > 0" class="bg-gradient-to-r from-amber-50 to-amber-100/30 rounded-2xl border border-amber-200/60 p-6 shadow-sm">
+                <div class="flex items-center space-x-2 mb-4">
+                    <div class="bg-amber-500 text-white p-1.5 rounded-lg shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-extrabold text-[#1a2b4c]">Tasks To Do</h3>
+                    <span class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full text-xs font-bold">{{ totalTasksCount }} Action Required</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- 1. Pending Approvals -->
+                    <div 
+                        v-for="item in pendingApprovals" 
+                        :key="'appr-' + item.id"
+                        class="bg-white rounded-xl p-4 border border-amber-100 shadow-sm hover:shadow-md hover:border-amber-300 transition duration-200 flex flex-col justify-between cursor-pointer relative group"
+                        @click="openDetails(item.id)"
+                    >
+                        <div>
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 uppercase tracking-wide">Approval Signature</span>
+                                <span class="text-[10px] text-gray-400">{{ item.created_at }}</span>
+                            </div>
+                            <p class="text-sm font-bold text-[#1a2b4c] mt-2 truncate">{{ item.company_name }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Order #{{ item.id }} needs your workflow signature to advance.</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
+                            <span class="text-sm font-extrabold text-[#1a2b4c]">{{ formatCurrency(item.total) }}</span>
+                            <button 
+                                type="button"
+                                class="text-xs font-bold text-white bg-[#e96a25] hover:bg-[#d0591b] px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center group-hover:scale-105 transform"
+                            >
+                                Review Order
+                                <svg class="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Pending RFQs to submit (only rendered if exists, e.g. buyer acts as multiple roles) -->
+                    <div 
+                        v-for="item in pendingRfqs" 
+                        :key="'rfq-' + item.id"
+                        class="bg-white rounded-xl p-4 border border-indigo-100 shadow-sm hover:shadow-md hover:border-indigo-300 transition duration-200 flex flex-col justify-between cursor-pointer relative group"
+                        @click="openDetails(item.id)"
+                    >
+                        <div>
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase tracking-wide">RFQ Submission</span>
+                                <span class="text-[10px] text-gray-400">{{ item.created_at }}</span>
+                            </div>
+                            <p class="text-sm font-bold text-[#1a2b4c] mt-2 truncate">{{ item.company_name }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">Order #{{ item.id }} sits in RFQ status and must be submitted.</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-gray-50 pt-3">
+                            <span class="text-sm font-extrabold text-[#1a2b4c]">{{ formatCurrency(item.total) }}</span>
+                            <button 
+                                type="button"
+                                class="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center group-hover:scale-105 transform"
+                            >
+                                Submit RFQ
+                                <svg class="w-3 h-3 ml-1 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Top Filter Bar (Month only for global dashboard logic) -->
             <div class="flex flex-wrap items-center justify-between gap-4">
@@ -375,7 +517,9 @@ const getStatusBadgeClass = (status) => {
                         <tbody class="divide-y divide-gray-50 bg-white">
                             <tr v-for="order in orders.data" :key="order.id" class="hover:bg-gray-50/50 transition-colors duration-150">
                                 <td class="px-6 py-5">
-                                    <span class="font-black text-gray-900 text-sm">#{{ String(order.id).padStart(6, '0') }}</span>
+                                    <button @click="openDetails(order.id)" class="font-black text-gray-900 hover:text-[#e96a25] transition-colors border-b border-dashed border-gray-300 hover:border-[#e96a25] text-left text-sm">
+                                        #{{ String(order.id).padStart(6, '0') }}
+                                    </button>
                                 </td>
                                 <td class="px-6 py-5 text-sm font-medium text-gray-600">
                                     {{ new Date(order.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}
@@ -438,10 +582,54 @@ const getStatusBadgeClass = (status) => {
                             "{{ selectedOrder.rejection_reason }}"
                         </div>
 
+                        <!-- PO Attachment Link Section -->
+                        <div v-if="selectedOrder.po_attachment" class="bg-violet-50/50 border border-violet-100 rounded-xl p-3.5 mb-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 bg-violet-100 rounded-lg flex items-center justify-center text-violet-600 flex-shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <div class="truncate">
+                                    <div class="text-xs font-black text-[#1a2b4c] uppercase tracking-wider">PO Attachment</div>
+                                    <div class="text-[11px] text-violet-700 font-medium truncate max-w-[200px]">{{ selectedOrder.po_attachment.split('/').pop() }}</div>
+                                </div>
+                            </div>
+                            <a 
+                                :href="selectedOrder.po_attachment" 
+                                target="_blank"
+                                class="px-3.5 py-2 bg-white border border-violet-200 text-violet-600 text-xs font-bold rounded-lg hover:bg-violet-50 transition duration-200 shadow-sm hover:shadow-md flex items-center gap-1.5 flex-shrink-0"
+                            >
+                                <span>View</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                            </a>
+                        </div>
+
+                        <!-- Clickable Thumbnail Preview for Photo PO -->
+                        <div v-if="selectedOrder.po_attachment && isImageAttachment(selectedOrder.po_attachment)" class="mb-6">
+                            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Photo Preview</div>
+                            <a :href="selectedOrder.po_attachment" target="_blank" class="block group relative border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all max-w-xs">
+                                <img :src="selectedOrder.po_attachment" class="w-full h-auto max-h-48 object-cover hover:scale-105 transition-transform duration-300" alt="PO Attachment Image" />
+                                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    View Full Image
+                                </div>
+                            </a>
+                        </div>
+
                         <ul class="space-y-4 max-h-60 overflow-y-auto pr-2 mb-4">
                             <li v-for="item in selectedOrder.items" :key="item.id" class="flex justify-between text-sm">
                                 <div class="flex-1 pr-4">
-                                    <div class="font-bold text-gray-800">{{ item.product?.name || 'Product Deleted' }}</div>
+                                    <div class="font-bold text-gray-800">
+                                        <template v-if="item.product">
+                                            <Link :href="route('catalog.show', { product: item.product.id, origin: 'dashboard', order_id: selectedOrder.id })" class="hover:text-[#e96a25] hover:underline transition">
+                                                {{ item.product.name }}
+                                            </Link>
+                                        </template>
+                                        <template v-else>
+                                            Product Deleted
+                                        </template>
+                                    </div>
                                     <div class="text-xs text-gray-400">{{ item.quantity }} x {{ formatCurrency(item.price) }}</div>
                                 </div>
                                 <div class="font-bold text-[#1a2b4c]">{{ formatCurrency(item.price * item.quantity) }}</div>
@@ -475,6 +663,72 @@ const getStatusBadgeClass = (status) => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- File Uploader for PO Creation Attachment -->
+                        <div v-if="selectedOrder.status === 'Quotation'" class="mt-6 pt-4 border-t border-gray-100">
+                            <label class="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                </svg>
+                                Upload Signed Purchase Order (PO)
+                                <span class="text-red-500 font-black text-xs">*</span>
+                            </label>
+                            
+                            <div 
+                                class="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer hover:border-violet-400 transition duration-200 group relative"
+                                :class="statusForm.po_attachment ? 'bg-violet-50/40 border-violet-300' : 'border-gray-200 bg-gray-50/50 hover:bg-gray-50'"
+                            >
+                                <input 
+                                    type="file" 
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                                    accept=".pdf, image/jpeg, image/png, image/jpg"
+                                    @change="handleFileChange"
+                                />
+                                
+                                <div v-if="!selectedFileName" class="flex flex-col items-center py-2">
+                                    <svg class="w-8 h-8 text-gray-400 mb-2 group-hover:scale-110 transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="text-xs font-bold text-gray-600">Click to upload file or drag & drop</p>
+                                    <p class="text-[10px] text-gray-400 mt-1">Supported formats: PDF, PNG, JPG (Max 5MB)</p>
+                                </div>
+                                
+                                <div v-else class="flex items-center justify-between bg-white p-2.5 rounded-lg border border-violet-100 shadow-sm">
+                                    <div class="flex items-center gap-3 min-w-0 text-left">
+                                        <div class="w-8 h-8 rounded bg-violet-100 flex items-center justify-center text-violet-600 font-black text-xs flex-shrink-0">
+                                            {{ selectedFileName.split('.').pop().toUpperCase() }}
+                                        </div>
+                                        <div class="truncate pr-2">
+                                            <div class="text-xs font-bold text-gray-800 truncate">{{ selectedFileName }}</div>
+                                            <div class="text-[9px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                                                File ready
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="button" 
+                                        @click.stop.prevent="() => { selectedFileName = ''; statusForm.po_attachment = null; }"
+                                        class="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition duration-150 flex-shrink-0 z-10"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Error messaging -->
+                            <p v-if="fileInputError" class="text-xs text-red-500 font-bold mt-2 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                                {{ fileInputError }}
+                            </p>
+                            
+                            <p v-if="statusForm.errors.po_attachment" class="text-xs text-red-500 font-bold mt-2 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                                {{ statusForm.errors.po_attachment }}
+                            </p>
                         </div>
 
                         <div class="mt-8 space-y-3">
