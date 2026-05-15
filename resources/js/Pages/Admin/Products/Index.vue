@@ -1,13 +1,16 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import CategorySidebar from '@/Components/CategorySidebar.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import Pagination from '@/Components/Pagination.vue';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
 
 const props = defineProps({
-    products: Array,
+    products: Object, // LengthAwarePaginator
     categories: Array,
+    totalProducts: Number,
+    filters: Object,
 });
 
 const page = usePage();
@@ -17,8 +20,8 @@ const formatCurrency = (val) => {
     catch (e) { return `${currency} ${Number(val).toFixed(2)}`; }
 };
 
-const searchQuery = ref('');
-const selectedCategoryId = ref(null);
+const searchQuery = ref(props.filters.q || '');
+const selectedCategoryId = ref(props.filters.category_id || null);
 const isUploadModalOpen = ref(false);
 const fileInputRef = ref(null);
 
@@ -31,39 +34,34 @@ const submitUpload = () => {
     });
 };
 
-// Category descendant helper (used by getCategoryCount and filteredProducts)
-const getCategoryDescendants = (catId) => {
-    const desc = [Number(catId)];
-    const getChildren = (id) => {
-        props.categories.filter(c => Number(c.parent_id) === Number(id)).forEach(child => {
-            desc.push(Number(child.id));
-            getChildren(child.id);
+// Debounce search request
+let searchTimeout = null;
+const runFilterQuery = (instant = false) => {
+    const params = {};
+    if (searchQuery.value) params.q = searchQuery.value;
+    if (selectedCategoryId.value !== null) params.category_id = selectedCategoryId.value;
+    
+    const delay = instant ? 0 : 350;
+    
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.get(route('admin.products.index'), params, {
+            preserveState: true,
+            replace: true,
         });
-    };
-    getChildren(catId);
-    return desc;
+    }, delay);
 };
+
+// Watchers to trigger server updates
+watch(searchQuery, () => runFilterQuery(false));
+watch(selectedCategoryId, () => runFilterQuery(true));
 
 // Passed as prop to CategorySidebar
 const getCategoryCount = (catId) => {
-    if (catId === null) return props.products.length;
-    const ids = getCategoryDescendants(catId);
-    return props.products.filter(p => p.categories?.some(c => ids.includes(Number(c.id)))).length;
+    if (catId === null) return props.totalProducts;
+    const cat = props.categories.find(c => Number(c.id) === Number(catId));
+    return cat ? (cat.products_count || 0) : 0;
 };
-
-const filteredProducts = computed(() => {
-    const q = searchQuery.value.toLowerCase().trim();
-    return props.products.filter(p => {
-        if (selectedCategoryId.value !== null) {
-            const ids = getCategoryDescendants(selectedCategoryId.value);
-            if (!p.categories?.some(c => ids.includes(Number(c.id)))) return false;
-        }
-        if (q) {
-            return (p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.brand?.toLowerCase().includes(q));
-        }
-        return true;
-    });
-});
 
 const productToDelete = ref(null);
 const showDeleteModal = ref(false);
@@ -174,7 +172,7 @@ const executeDeleteProduct = () => {
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-50">
-                                        <tr v-for="product in filteredProducts" :key="product.id" class="hover:bg-gray-50/60 transition">
+                                        <tr v-for="product in props.products.data" :key="product.id" class="hover:bg-gray-50/60 transition">
                                             <td class="px-5 py-4 text-xs font-mono font-bold text-gray-400">{{ product.sku }}</td>
                                             <td class="px-5 py-4">
                                                 <div class="flex items-center space-x-3">
@@ -216,13 +214,15 @@ const executeDeleteProduct = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                        <tr v-if="filteredProducts.length === 0">
+                                        <tr v-if="props.products.data.length === 0">
                                             <td colspan="6" class="px-5 py-12 text-center text-sm text-gray-400">No products found.</td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
-                            <p class="text-xs text-gray-400 mt-3 font-medium">Showing {{ filteredProducts.length }} of {{ products.length }} products</p>
+                            
+                            <!-- Pagination area -->
+                            <Pagination :links="props.products.links" />
                         </div>
                     </div>
                 </div>

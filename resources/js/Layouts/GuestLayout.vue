@@ -6,7 +6,7 @@ import Footer from '@/Components/Footer.vue';
 <template>
     <div class="min-h-screen bg-slate-50 flex flex-col justify-between text-gray-800">
         <!-- Main Content Area -->
-        <div class="flex-grow flex flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <div class="flex-grow flex flex-col items-center justify-center px-4 pt-12 pb-24 sm:px-6 lg:px-8">
             <!-- Branding Header -->
             <div class="mb-8 text-center animate-fade-in">
                 <Link :href="route('catalog.index')" class="flex flex-col items-center space-y-2">

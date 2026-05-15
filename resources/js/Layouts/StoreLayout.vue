@@ -167,7 +167,7 @@ import AdminSidebar from '@/Components/AdminSidebar.vue';
         <!-- Sub Header - Removed as it's moved to Index.vue -->
 
         <!-- Main Content Layout -->
-        <div class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-8 w-full">
+        <div class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 flex flex-col md:flex-row gap-8 w-full">
             <slot />
         </div>
 
@@ -187,7 +187,7 @@ import AdminSidebar from '@/Components/AdminSidebar.vue';
             <button 
                 v-show="showBackToTop" 
                 @click="scrollToTop"
-                class="fixed bottom-6 right-6 z-50 bg-[#1a2b4c] text-white p-3 rounded-full shadow-lg shadow-[#1a2b4c]/30 hover:bg-[#e96a25] hover:shadow-[#e96a25]/30 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#e96a25] focus:ring-offset-2 hover:-translate-y-1"
+                class="fixed bottom-20 right-6 z-50 bg-[#1a2b4c] text-white p-3 rounded-full shadow-lg shadow-[#1a2b4c]/30 hover:bg-[#e96a25] hover:shadow-[#e96a25]/30 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[#e96a25] focus:ring-offset-2 hover:-translate-y-1"
                 aria-label="Back to top"
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

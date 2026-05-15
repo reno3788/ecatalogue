@@ -103,37 +103,6 @@ const hasSidebar = computed(() => {
                         >
                             <span>Companies</span>
                         </Link>
-
-                        <Link 
-                            v-if="isAdmin"
-                            :href="route('admin.users.index')" 
-                            :class="[
-                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
-                                route().current('admin.users.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
-                            ]"
-                        >
-                            <span>Users Config</span>
-                        </Link>
-                        <Link 
-                            v-if="isAdmin"
-                            :href="route('admin.workflows.index')" 
-                            :class="[
-                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
-                                route().current('admin.workflows.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
-                            ]"
-                        >
-                            <span>Workflow Approval</span>
-                        </Link>
-                        <Link 
-                            v-if="isAdmin"
-                            :href="route('admin.app-settings.index')" 
-                            :class="[
-                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
-                                route().current('admin.app-settings.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
-                            ]"
-                        >
-                            <span>App Settings</span>
-                        </Link>
                         <Link 
                             :href="route('admin.client-price-lists.index')" 
                             :class="[
@@ -143,8 +112,42 @@ const hasSidebar = computed(() => {
                         >
                             <span>Client Price List</span>
                         </Link>
+                    </div>
+                </div>
+
+                <div v-if="isAdmin" class="pt-4 border-t border-gray-100 mt-4">
+                    <div class="px-4 py-1 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        Configuration
+                    </div>
+                    <div class="mt-2 space-y-1">
                         <Link 
-                            v-if="isAdmin"
+                            :href="route('admin.users.index')" 
+                            :class="[
+                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
+                                route().current('admin.users.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
+                            ]"
+                        >
+                            <span>Users Config</span>
+                        </Link>
+                        <Link 
+                            :href="route('admin.workflows.index')" 
+                            :class="[
+                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
+                                route().current('admin.workflows.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
+                            ]"
+                        >
+                            <span>Workflow Approval</span>
+                        </Link>
+                        <Link 
+                            :href="route('admin.app-settings.index')" 
+                            :class="[
+                                'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',
+                                route().current('admin.app-settings.*') ? 'text-[#e96a25] font-bold bg-[#e96a25]/5' : 'text-gray-600 hover:text-[#1a2b4c] hover:bg-gray-50'
+                            ]"
+                        >
+                            <span>App Settings</span>
+                        </Link>
+                        <Link 
                             :href="route('admin.audit-logs.index')" 
                             :class="[
                                 'flex items-center space-x-3 px-4 py-2 rounded-md text-sm font-medium transition-colors w-full text-left block',

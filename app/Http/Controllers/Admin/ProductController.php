@@ -11,14 +11,45 @@ use App\Models\Category;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with('categories')->get();
-        $categories = Category::all();
+        $query = Product::with('categories');
+
+        if ($request->has('category_id') && $request->category_id) {
+            $category = Category::find($request->category_id);
+            if ($category) {
+                $categoryIds = $category->getAllDescendantIds();
+                $query->whereHas('categories', function ($q) use ($categoryIds) {
+                    $q->whereIn('categories.id', $categoryIds);
+                });
+            }
+        }
+
+        if ($request->has('q') && $request->q) {
+            $q = $request->q;
+            $query->where(function($sub) use ($q) {
+                $sub->where('name', 'like', '%' . $q . '%')
+                    ->orWhere('sku', 'like', '%' . $q . '%')
+                    ->orWhere('brand', 'like', '%' . $q . '%');
+            });
+        }
+
+        $products = $query->latest()->paginate(15)->withQueryString();
+        
+        // Load all categories with computed recursive product counts for the sidebar
+        $categories = Category::getWithRecursiveProductCounts(Category::orderBy('name'));
+        
+        // Count ALL unique products currently in system (active and inactive)
+        $totalCount = Product::count();
 
         return Inertia::render('Admin/Products/Index', [
-            'products'   => $products,
-            'categories' => $categories,
+            'products'      => $products,
+            'categories'    => $categories,
+            'totalProducts' => $totalCount,
+            'filters'       => [
+                'q'           => $request->q ?? '',
+                'category_id' => $request->category_id ? (int)$request->category_id : null,
+            ],
         ]);
     }
 
