@@ -455,71 +455,74 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                     name="list" 
                     tag="div" 
                     :class="[
-                        viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 relative' : 'flex flex-col space-y-4 relative',
+                        viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 relative' : 'flex flex-col space-y-3 sm:space-y-4 relative',
                         isLoading ? 'opacity-40 saturate-50 transition-all duration-500 select-none pointer-events-none' : 'transition-all duration-300'
                     ]"
                 >
                 <Link v-for="product in products" :key="product.id" :href="route('catalog.show', product.id)"
-                     :class="viewMode === 'grid' ? 'flex-col' : 'flex-row items-center p-6'"
-                     class="bg-white border border-gray-100 rounded-xl p-4 flex hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
+                     :class="viewMode === 'grid' ? 'flex-col p-3 sm:p-4' : 'flex-row items-start sm:items-center p-3 sm:p-6'"
+                     class="bg-white border border-gray-100 rounded-xl flex hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                     
                     <!-- Added to cart overlay animation -->
                     <div v-if="animatingProduct === product.id" class="absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center animate-pulse">
-                        <svg class="w-12 h-12 text-[#1a2b4c] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                        <span class="font-bold text-[#1a2b4c]">Adding...</span>
+                        <svg class="w-8 h-8 sm:w-12 sm:h-12 text-[#1a2b4c] mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span class="font-bold text-xs sm:text-base text-[#1a2b4c]">Adding...</span>
                     </div>
 
                     <!-- Image -->
-                    <div :class="viewMode === 'grid' ? 'w-full mb-4' : 'w-48 mr-6 flex-shrink-0'" class="aspect-w-1 aspect-h-1 bg-white flex items-center justify-center p-4">
-                        <img :src="product.image || generatePlaceholder(product.id)" :alt="product.name" class="object-contain max-h-48 mx-auto group-hover:scale-105 transition-transform duration-500">
+                    <div :class="viewMode === 'grid' ? 'w-full mb-2 sm:mb-4' : 'w-24 sm:w-48 mr-3 sm:mr-6 flex-shrink-0'" class="aspect-w-1 aspect-h-1 bg-white flex items-center justify-center rounded-lg">
+                        <img :src="product.image || generatePlaceholder(product.id)" :alt="product.name" class="object-contain mx-auto group-hover:scale-105 transition-transform duration-500" :class="viewMode === 'grid' ? 'max-h-28 sm:max-h-48' : 'max-h-24 sm:max-h-48'">
                     </div>
 
                     <!-- Details -->
-                    <div class="flex-grow flex flex-col" :class="viewMode === 'list' ? 'justify-center' : ''">
-                        <h4 class="text-base font-bold text-gray-900 leading-tight mb-1">{{ product.name }}</h4>
-                        <div class="text-xs text-gray-500 mb-2 flex flex-wrap items-center gap-x-1.5">
+                    <div class="flex-grow flex flex-col min-w-0" :class="viewMode === 'list' ? 'justify-center py-1 sm:py-2' : ''">
+                        <h4 class="text-sm sm:text-base font-bold text-gray-900 leading-tight mb-1 truncate">{{ product.name }}</h4>
+                        <div class="text-[10px] sm:text-xs text-gray-500 mb-1 sm:mb-2 flex flex-wrap items-center gap-x-1.5" :class="viewMode === 'grid' ? 'hidden sm:flex' : ''">
                             <span class="font-mono">{{ product.sku }}</span>
-                            <span class="text-gray-300">|</span>
-                            <span>{{ product.brand || 'No Brand' }}</span>
+                            <span class="text-gray-300 hidden sm:inline">|</span>
+                            <span class="hidden sm:inline">{{ product.brand || 'No Brand' }}</span>
                             <template v-if="product.uom">
-                                <span class="text-gray-300">|</span>
+                                <span class="text-gray-300 hidden sm:inline">|</span>
                                 <span class="text-[#e96a25] font-semibold">UOM: {{ product.uom }}</span>
                             </template>
                             <template v-if="product.minimum_order > 1">
-                                <span class="text-gray-300">|</span>
+                                <span class="text-gray-300 hidden sm:inline">|</span>
                                 <span class="text-red-600 font-bold">Min: {{ product.minimum_order }}</span>
                             </template>
                         </div>
                         
                         <!-- Description -->
-                        <div class="text-xs text-gray-600 mb-3 line-clamp-2" :title="product.description">
+                        <div class="hidden sm:block text-xs text-gray-600 mb-3" 
+                             style="display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;"
+                             :style="{ '-webkit-line-clamp': viewMode === 'grid' ? 2 : 3 }"
+                             :title="product.description">
                             {{ product.description || 'No description available.' }}
                         </div>
                         
-                        <div class="mt-auto" :class="viewMode === 'list' ? 'flex items-center justify-between mt-4' : ''">
-                            <div class="flex items-end justify-between mb-4">
-                                <span class="text-xl font-extrabold text-gray-900">{{ formatCurrency(product.base_price) }}</span>
+                        <div class="mt-auto" :class="viewMode === 'list' ? 'flex flex-col sm:flex-row sm:items-center justify-between sm:mt-4' : ''">
+                            <div class="flex items-end justify-between mb-2 sm:mb-4">
+                                <span class="text-sm sm:text-xl font-extrabold text-gray-900">{{ formatCurrency(product.base_price) }}</span>
                             </div>
                             
                             <!-- Quantity and Add Button Container -->
-                            <div v-if="canAddToCart" class="flex items-center space-x-2" :class="viewMode === 'list' ? 'w-64' : 'w-full'">
+                            <div v-if="canAddToCart" class="flex items-center space-x-1 sm:space-x-2" :class="viewMode === 'list' ? 'w-full sm:w-64 mt-1 sm:mt-0' : 'w-full'">
                                 <!-- Quantity Selector -->
-                                <div class="flex items-center border border-gray-300 rounded h-10 w-24 flex-shrink-0 bg-white hover:border-[#e96a25] transition-colors">
-                                    <button @click.prevent="updateQuantity(product.id, -1)" class="px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3">-</button>
-                                    <input type="number" @click.prevent v-model.number="quantities[product.id]" :min="Math.max(1, product.minimum_order || 1)" @change="validateQuantity(product)" class="w-1/3 text-center text-sm border-none focus:ring-0 p-0 font-medium" />
-                                    <button @click.prevent="updateQuantity(product.id, 1)" class="px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3">+</button>
+                                <div class="flex items-center border border-gray-300 rounded h-8 sm:h-10 w-20 sm:w-24 flex-shrink-0 bg-white hover:border-[#e96a25] transition-colors">
+                                    <button @click.prevent="updateQuantity(product.id, -1)" class="px-1.5 sm:px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3 text-xs sm:text-base">-</button>
+                                    <input type="number" @click.prevent v-model.number="quantities[product.id]" :min="Math.max(1, product.minimum_order || 1)" @change="validateQuantity(product)" class="w-1/3 text-center text-xs sm:text-sm border-none focus:ring-0 p-0 font-medium" />
+                                    <button @click.prevent="updateQuantity(product.id, 1)" class="px-1.5 sm:px-2 text-gray-500 hover:text-gray-900 transition-colors w-1/3 text-xs sm:text-base">+</button>
                                 </div>
 
                                 <!-- Add to Cart Button -->
                                 <button 
                                     @click.prevent="addToCart(product)"
                                     :disabled="form.processing && form.product_id === product.id"
-                                    class="flex-grow h-10 flex items-center justify-center rounded text-white transition-all duration-300"
+                                    class="flex-grow h-8 sm:h-10 flex items-center justify-center rounded text-white transition-all duration-300"
                                     :class="addedProduct === product.id ? 'bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20' : 'bg-[#1a2b4c] hover:bg-[#121f38] hover:shadow-lg hover:shadow-[#1a2b4c]/30'"
                                     :title="addedProduct === product.id ? 'Added' : 'Quick Add'"
                                 >
-                                    <svg v-if="addedProduct === product.id" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    <svg v-if="addedProduct === product.id" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <svg v-else class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                 </button>
                             </div>
                         </div>

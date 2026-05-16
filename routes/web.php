@@ -42,10 +42,16 @@ Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'inde
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
+use App\Http\Controllers\NotificationController;
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Notifications
+    Route::get('/api/notifications/unread', [NotificationController::class, 'getUnread'])->name('notifications.unread');
+    Route::post('/api/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 });
 
 // Admin Strictly Protected Routes

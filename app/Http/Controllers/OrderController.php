@@ -101,6 +101,13 @@ class OrderController extends Controller
 
         $order->update($updateData);
 
+        if ($request->status === 'PO') {
+            $suppliers = \App\Models\User::whereHas('roles', function($q) {
+                $q->whereIn('name', ['admin', 'supplier_processor', 'supplier_approver']);
+            })->get();
+            \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Buyer has generated a PO for order #' . $order->id));
+        }
+
         return back()->with([
             'flash_type' => 'success',
             'flash_message' => "Order status updated to {$request->status}.",

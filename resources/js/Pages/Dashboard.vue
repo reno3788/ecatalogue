@@ -115,6 +115,7 @@ const openDetails = async (orderId) => {
 
 const fileInputError = ref('');
 const selectedFileName = ref('');
+const localFileUrl = ref(null);
 
 const statusForm = useForm({
     status: '',
@@ -122,38 +123,59 @@ const statusForm = useForm({
     _method: 'PATCH' // Required for file uploads to hit PATCH routes
 });
 
+const clearLocalFile = () => {
+    if (localFileUrl.value) {
+        URL.revokeObjectURL(localFileUrl.value);
+        localFileUrl.value = null;
+    }
+    selectedFileName.value = '';
+    statusForm.po_attachment = null;
+    fileInputError.value = '';
+};
+
 const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
     // 5MB Limit = 5 * 1024 * 1024
     if (file.size > 5242880) {
+        clearLocalFile();
         fileInputError.value = 'File exceeds 5MB threshold. Please select a smaller file.';
-        selectedFileName.value = '';
-        statusForm.po_attachment = null;
         return;
     }
     
     const validExtensions = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
     if (!validExtensions.includes(file.type)) {
+        clearLocalFile();
         fileInputError.value = 'Unsupported file format. Please upload PDF or valid Image.';
-        selectedFileName.value = '';
-        statusForm.po_attachment = null;
         return;
+    }
+    
+    if (localFileUrl.value) {
+        URL.revokeObjectURL(localFileUrl.value);
     }
     
     fileInputError.value = '';
     selectedFileName.value = file.name;
     statusForm.po_attachment = file;
+    localFileUrl.value = URL.createObjectURL(file);
 };
 
 const closeModal = () => {
     showModal.value = false;
+    
+    // Clean up URL without triggering a reload
+    if (typeof window !== 'undefined') {
+        const url = new URL(window.location);
+        url.searchParams.delete('open_order');
+        url.searchParams.delete('page');
+        window.history.replaceState({}, '', url);
+    }
+
     setTimeout(() => { 
         selectedOrder.value = null;
         statusForm.reset();
-        selectedFileName.value = '';
-        fileInputError.value = '';
+        clearLocalFile();
     }, 300);
 };
 
@@ -729,6 +751,27 @@ const getStatusBadgeClass = (status) => {
                                 <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                                 {{ statusForm.errors.po_attachment }}
                             </p>
+
+                            <!-- Local File Preview -->
+                            <div v-if="localFileUrl" class="mt-4 border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-gray-50 p-2">
+                                <div class="flex items-center justify-between mb-2 px-2">
+                                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wider">Document Preview</span>
+                                </div>
+                                <div class="bg-white rounded-lg overflow-hidden flex justify-center border border-gray-100 min-h-[200px]">
+                                    <iframe 
+                                        v-if="statusForm.po_attachment?.type === 'application/pdf'" 
+                                        :src="localFileUrl" 
+                                        class="w-full h-64 border-0"
+                                        title="PDF Preview"
+                                    ></iframe>
+                                    <img 
+                                        v-else 
+                                        :src="localFileUrl" 
+                                        class="max-w-full max-h-64 object-contain"
+                                        alt="Document Preview"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mt-8 space-y-3">
@@ -767,4 +810,25 @@ const getStatusBadgeClass = (status) => {
             @confirm="executeStatusUpdate"
         />
     </AuthenticatedLayout>
+    
+    <!-- Global Processing Overlay -->
+    <div v-if="isUpdating" class="fixed inset-0 z-[9999] bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300">
+        <div class="flex flex-col items-center space-y-4 bg-white shadow-2xl rounded-2xl px-12 py-10 border border-gray-100 mx-4 text-center">
+            <div class="relative flex items-center justify-center">
+                <div class="w-16 h-16 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
+                <svg class="w-8 h-8 text-violet-600 absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-lg font-black text-[#1a2b4c] tracking-tight uppercase">Processing Order</h3>
+                <p class="text-sm text-gray-500 font-bold mt-1">Please wait, notifying stakeholders...</p>
+                <div class="flex items-center justify-center gap-1 mt-4">
+                    <div class="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                    <div class="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-1.5 h-1.5 bg-violet-600 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>

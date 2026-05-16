@@ -79,6 +79,16 @@ class OrderController extends Controller
                 
                 // Final promotion if complete, otherwise remains in Submitted for next step!
                 $order->update(['status' => $nextStatus]);
+
+                if ($nextStatus === 'Approved') {
+                    $suppliers = \App\Models\User::whereHas('roles', function($q) {
+                        $q->whereIn('name', ['admin', 'supplier_processor', 'supplier_approver']);
+                    })->get();
+                    \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Order #' . $order->id . ' has been Approved. Please send a quotation.'));
+                    
+                    // Notify buyers
+                    $this->notifyCompanyBuyers($order, 'Approved');
+                }
                 
                 $msg = ($nextStatus === 'Approved') 
                     ? "All approval steps complete. Order fully Approved!"
@@ -106,6 +116,9 @@ class OrderController extends Controller
                 'action' => 'Rejected',
                 'note' => $request->rejection_reason
             ]);
+
+            // Notify buyers
+            $this->notifyCompanyBuyers($order, 'Rejected', $request->rejection_reason);
         } else {
             $data['rejection_reason'] = null;
             
@@ -122,9 +135,28 @@ class OrderController extends Controller
 
         $order->update($data);
 
+        // Notify if it's manually approved
+        if ($request->status === 'Approved') {
+            $suppliers = \App\Models\User::whereHas('roles', function($q) {
+                $q->whereIn('name', ['admin', 'supplier_processor', 'supplier_approver']);
+            })->get();
+            \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Order #' . $order->id . ' has been manually Approved. Please send a quotation.'));
+            
+            // Notify buyers
+            $this->notifyCompanyBuyers($order, 'Approved');
+        }
+
+        // Notify buyers for Invoiced, Shipped, or other statuses (manual update fallback)
+        if (in_array($request->status, ['Invoiced', 'Shipped'])) {
+            $this->notifyCompanyBuyers($order, $request->status);
+        }
+
         // 3. Event-Driven Action: Auto-send premium notification if promoting to Quotation phase.
         if ($request->status === 'Quotation') {
             try {
+                // Notify buyers
+                $this->notifyCompanyBuyers($order, 'Quotation');
+
                 $recipient = $order->user;
                 if ($recipient && $recipient->email) {
                     Mail::to($recipient->email)->send(new QuotationMail($order));
@@ -239,6 +271,12 @@ class OrderController extends Controller
             }
             
             $order->update($updateData);
+            
+            // Notify buyers for relevant status changes in batch
+            if (in_array($targetStatus, ['Approved', 'Quotation', 'Invoiced', 'Shipped', 'Rejected'])) {
+                $this->notifyCompanyBuyers($order, $targetStatus, $request->rejection_reason);
+            }
+
             $successCount++;
         }
 
@@ -273,5 +311,30 @@ class OrderController extends Controller
         $orderData['can_approve'] = $isWfTrans ? $this->workflowService->canUserApprove($order, $request->user()) : false;
         
         return response()->json($orderData);
+    }
+
+    private function notifyCompanyBuyers(Order $order, string $status, ?string $reason = null)
+    {
+        // Use whereHas instead of role() to avoid "Role not found" exceptions
+        $buyers = \App\Models\User::where('company_id', $order->company_id)
+            ->whereHas('roles', function($q) {
+                $q->whereIn('name', ['buyer', 'buyer_requester']);
+            })
+            ->get();
+
+        if ($buyers->isEmpty()) {
+            return;
+        }
+
+        $message = match ($status) {
+            'Approved' => "Your order #{$order->id} has been approved and is awaiting quotation.",
+            'Quotation' => "A quotation for order #{$order->id} is ready for your review.",
+            'Invoiced' => "An invoice has been generated for your order #{$order->id}.",
+            'Shipped' => "Order #{$order->id} has been shipped and is on its way.",
+            'Rejected' => "Order #{$order->id} has been rejected." . ($reason ? " Reason: {$reason}" : ""),
+            default => "Order #{$order->id} status updated to {$status}.",
+        };
+
+        \Illuminate\Support\Facades\Notification::send($buyers, new \App\Notifications\OrderStatusNotification($order, $message));
     }
 }

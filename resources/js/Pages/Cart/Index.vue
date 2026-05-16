@@ -148,7 +148,25 @@ const confirmDelete = () => {
         <div class="w-full">
             <h2 class="font-bold text-2xl mb-6 text-gray-900">Shopping Cart</h2>
             
-            <div class="bg-white border border-gray-200 rounded p-6 shadow-sm">
+            <div class="bg-white border border-gray-200 rounded p-6 shadow-sm relative overflow-hidden">
+                <!-- Loading Overlay for Checkout Process -->
+                <Transition name="fade">
+                    <div v-if="checkoutForm.processing" class="absolute inset-0 z-30 bg-white/60 backdrop-blur-[2px] flex flex-col items-center justify-center space-y-4 transition-all duration-300">
+                        <div class="flex flex-col items-center space-y-3 bg-white shadow-2xl rounded-2xl px-10 py-8 border border-gray-100 mx-4">
+                            <div class="relative flex items-center justify-center">
+                                <div class="w-12 h-12 border-4 border-amber-100 border-t-[#e96a25] rounded-full animate-spin"></div>
+                                <svg class="w-6 h-6 text-[#e96a25] absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                </svg>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-sm font-black text-[#1a2b4c] tracking-wide uppercase">Processing Checkout...</p>
+                                <p class="text-[10px] text-gray-400 font-bold tracking-widest animate-pulse mt-1">Submitting Request for Quotation</p>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
+
                 <div v-if="items.length > 0">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 mb-8">

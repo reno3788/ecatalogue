@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -9,6 +9,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import Footer from '@/Components/Footer.vue';
 import Toast from '@/Components/Toast.vue';
 import AdminSidebar from '@/Components/AdminSidebar.vue';
+import axios from 'axios';
 
 const showingNavigationDropdown = ref(false);
 
@@ -43,6 +44,56 @@ const formatCurrency = (val) => {
     const currency = page.props.appSettings?.currency || 'EUR';
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(val); }
     catch (e) { return `${currency} ${Number(val).toFixed(2)}`; }
+};
+
+// --- Notifications Logic ---
+const notifications = ref([]);
+const unreadCount = computed(() => notifications.value.length);
+
+const fetchNotifications = async () => {
+    try {
+        const response = await axios.get(route('notifications.unread'));
+        notifications.value = response.data.notifications || response.data;
+    } catch (e) {
+        console.error('Failed to fetch notifications', e);
+    }
+};
+
+const markAsRead = async (id, orderId) => {
+    try {
+        await axios.post(route('notifications.read', id));
+        fetchNotifications();
+        if (orderId) {
+            window.location.href = getOrderLink(orderId);
+        }
+    } catch (e) {
+        console.error('Failed to mark notification as read', e);
+    }
+};
+
+let pollInterval;
+onMounted(() => {
+    fetchNotifications();
+    pollInterval = setInterval(fetchNotifications, 10000); // 10 seconds
+});
+
+onUnmounted(() => {
+    clearInterval(pollInterval);
+});
+
+const timeAgo = (dateStr) => {
+    const seconds = Math.floor((new Date() - new Date(dateStr)) / 1000);
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "y ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "mo ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "d ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "h ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "m ago";
+    return "just now";
 };
 </script>
 
@@ -98,7 +149,7 @@ const formatCurrency = (val) => {
                                 </div>
 
                                 <div class="hidden sm:ms-6 sm:flex sm:items-center">
-                                    <!-- Tasks / Pending Approvals Dropdown -->
+                                    <!-- Notifications & Tasks Dropdown -->
                                     <div class="relative ms-3">
                                         <Dropdown align="right" width="80">
                                             <template #trigger>
@@ -111,8 +162,8 @@ const formatCurrency = (val) => {
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                                         </svg>
                                                         <!-- Badge Indicator -->
-                                                        <span v-if="totalTasksCount > 0" class="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-white ring-2 ring-white">
-                                                            {{ totalTasksCount }}
+                                                        <span v-if="(unreadCount + totalTasksCount) > 0" class="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border border-white ring-2 ring-white">
+                                                            {{ unreadCount + totalTasksCount }}
                                                         </span>
                                                     </button>
                                                 </span>
@@ -120,19 +171,19 @@ const formatCurrency = (val) => {
 
                                             <template #content>
                                                 <div class="px-4 py-2 font-semibold text-gray-700 border-b border-gray-100 text-sm flex items-center justify-between">
-                                                    <span>Tasks To Do</span>
-                                                    <span v-if="totalTasksCount > 0" class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">{{ totalTasksCount }} Pending</span>
+                                                    <span>Tasks & Notifications</span>
+                                                    <span v-if="(unreadCount + totalTasksCount) > 0" class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-xs">{{ unreadCount + totalTasksCount }} New</span>
                                                 </div>
                                                 
-                                                <div class="max-h-80 overflow-y-auto divide-y divide-gray-50">
-                                                    <div v-if="totalTasksCount === 0" class="px-4 py-6 text-center text-gray-500 text-sm">
+                                                <div class="max-h-96 overflow-y-auto divide-y divide-gray-50">
+                                                    <div v-if="(unreadCount + totalTasksCount) === 0" class="px-4 py-6 text-center text-gray-500 text-sm">
                                                         <svg class="mx-auto h-8 w-8 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                                                         </svg>
                                                         You are all caught up!
                                                     </div>
                                                     
-                                                    <!-- 1. Pending Approvals -->
+                                                    <!-- Tasks: Pending Approvals -->
                                                     <a 
                                                         v-for="item in pendingApprovals" 
                                                         :key="'appr-' + item.id"
@@ -147,7 +198,7 @@ const formatCurrency = (val) => {
                                                         <p class="mt-1 text-xs text-blue-600 font-bold">{{ formatCurrency(item.total) }}</p>
                                                     </a>
 
-                                                    <!-- 2. Pending RFQs to be Submitted -->
+                                                    <!-- Tasks: Pending RFQs -->
                                                     <a 
                                                         v-for="item in pendingRfqs" 
                                                         :key="'rfq-' + item.id"
@@ -160,6 +211,21 @@ const formatCurrency = (val) => {
                                                         </div>
                                                         <p class="text-gray-600 text-xs mt-1">Order #{{ item.id }} for <strong class="text-gray-800">{{ item.company_name }}</strong> is sitting as RFQ.</p>
                                                         <p class="mt-1 text-xs text-[#e96a25] font-bold">{{ formatCurrency(item.total) }}</p>
+                                                    </a>
+
+                                                    <!-- Notifications -->
+                                                    <a 
+                                                        v-for="notification in notifications" 
+                                                        :key="notification.id"
+                                                        @click.prevent="markAsRead(notification.id, notification.data.order_id)"
+                                                        href="#"
+                                                        class="block px-4 py-3 hover:bg-gray-50 text-sm transition duration-150 cursor-pointer"
+                                                    >
+                                                        <div class="flex justify-between items-start mb-1">
+                                                            <span class="font-bold text-gray-800 text-xs">System Alert</span>
+                                                            <span class="text-[10px] text-gray-400">{{ timeAgo(notification.created_at) }}</span>
+                                                        </div>
+                                                        <p class="text-gray-600 text-xs mt-1">{{ notification.data.message }}</p>
                                                     </a>
                                                 </div>
                                             </template>

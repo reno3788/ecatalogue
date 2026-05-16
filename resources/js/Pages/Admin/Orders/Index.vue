@@ -68,6 +68,15 @@ const openDetails = async (orderId) => {
 
 const closeModal = () => {
     showModal.value = false;
+    
+    // Clean up URL without triggering a reload
+    if (typeof window !== 'undefined') {
+        const url = new URL(window.location);
+        url.searchParams.delete('open_order');
+        url.searchParams.delete('page');
+        window.history.replaceState({}, '', url);
+    }
+
     setTimeout(() => { selectedOrder.value = null; }, 300);
 };
 
@@ -360,6 +369,29 @@ const getStatusBadgeClass = (status) => {
                 </div>
             </div>
         </div>
+
+    </AuthenticatedLayout>
+
+    <!-- Global Processing Overlay -->
+    <div v-if="statusForm.processing || batchForm.processing" class="fixed inset-0 z-[9999] bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center transition-all duration-300">
+        <div class="flex flex-col items-center space-y-4 bg-white shadow-2xl rounded-2xl px-12 py-10 border border-gray-100 mx-4">
+            <div class="relative flex items-center justify-center">
+                <div class="w-16 h-16 border-4 border-indigo-50 border-t-[#e96a25] rounded-full animate-spin"></div>
+                <svg class="w-8 h-8 text-[#1a2b4c] absolute" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg font-black text-[#1a2b4c] tracking-tight uppercase">System Processing</h3>
+                <p class="text-sm text-gray-500 font-bold mt-1">Updating order status and notifying stakeholders...</p>
+                <div class="flex items-center justify-center gap-1 mt-4">
+                    <div class="w-1.5 h-1.5 bg-[#e96a25] rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                    <div class="w-1.5 h-1.5 bg-[#e96a25] rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    <div class="w-1.5 h-1.5 bg-[#e96a25] rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
         <!-- Details & Status Management Modal -->
         <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -743,5 +775,4 @@ const getStatusBadgeClass = (status) => {
             @confirm="alertModal.show = false"
             @close="alertModal.show = false"
         />
-    </AuthenticatedLayout>
 </template>
