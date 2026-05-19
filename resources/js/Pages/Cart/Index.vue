@@ -265,7 +265,7 @@ const confirmDelete = () => {
                     <div class="text-gray-500 mb-6">
                         Your cart is empty.
                     </div>
-                    <Link :href="route('catalog.index')" class="inline-block bg-[#1a2b4c] hover:bg-[#121f38] text-white font-bold py-2.5 px-6 rounded transition-colors shadow-sm">
+                    <Link :href="route('catalog.index')" class="inline-block bg-[#d85a15] hover:bg-[#e96a25] text-white font-bold py-2.5 px-6 rounded transition-colors shadow-sm">
                         Continue Shopping
                     </Link>
                 </div>

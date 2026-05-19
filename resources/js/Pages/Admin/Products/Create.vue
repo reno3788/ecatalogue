@@ -21,6 +21,7 @@ const props = defineProps({
             classification: '',
             manufacturer_part_id: '',
             manufacturer_name: '',
+            tolerance_percentage: 0.00,
             categories: []
         })
     },
@@ -43,6 +44,7 @@ const form = useForm({
     classification: props.product.classification || '',
     manufacturer_part_id: props.product.manufacturer_part_id || '',
     manufacturer_name: props.product.manufacturer_name || '',
+    tolerance_percentage: props.product.tolerance_percentage || 0.00,
     categories: props.product.categories ? props.product.categories.map(c => c.id) : [],
     images: [],
     primary_image_index: 0
@@ -224,6 +226,13 @@ const breadcrumbItems = [
                                     <label class="block text-sm font-medium text-gray-700">Manufacturer Name</label>
                                     <input v-model="form.manufacturer_name" type="text" placeholder="e.g. Global Manufacturing Inc." class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
                                     <div v-if="form.errors.manufacturer_name" class="text-red-500 text-xs mt-1">{{ form.errors.manufacturer_name }}</div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Bargaining Tolerance (%)</label>
+                                    <input v-model="form.tolerance_percentage" type="number" step="0.01" min="0" max="100" placeholder="e.g. 10.00" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25]">
+                                    <p class="text-[10px] text-gray-400 mt-1">Allows defining the maximum price reduction warning threshold (0 to 100).</p>
+                                    <div v-if="form.errors.tolerance_percentage" class="text-red-500 text-xs mt-1">{{ form.errors.tolerance_percentage }}</div>
                                 </div>
                             </div>
                         </div>

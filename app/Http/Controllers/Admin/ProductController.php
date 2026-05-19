@@ -79,6 +79,7 @@ class ProductController extends Controller
             'classification'       => 'nullable|string|max:255',
             'manufacturer_part_id' => 'nullable|string|max:255',
             'manufacturer_name'    => 'nullable|string|max:255',
+            'tolerance_percentage' => 'nullable|numeric|min:0|max:100',
             'categories'           => 'array',
             'categories.*'         => 'exists:categories,id',
             'images'               => 'nullable|array',
@@ -154,6 +155,7 @@ class ProductController extends Controller
             'classification'    => 'nullable|string|max:255',
             'manufacturer_part_id'=> 'nullable|string|max:255',
             'manufacturer_name' => 'nullable|string|max:255',
+            'tolerance_percentage' => 'nullable|numeric|min:0|max:100',
             'categories'        => 'array',
             'categories.*'      => 'exists:categories,id',
             'images'            => 'nullable|array',
@@ -249,7 +251,7 @@ class ProductController extends Controller
             $file = fopen('php://output', 'w');
 
             // Header row — categories are pipe-separated category names e.g. "Electronics|Laptops"
-            fputcsv($file, ['name', 'sku', 'base_price', 'minimum_order', 'brand', 'description', 'categories', 'weight', 'color', 'size', 'uom', 'classification', 'manufacturer_part_id', 'manufacturer_name']);
+            fputcsv($file, ['name', 'sku', 'base_price', 'minimum_order', 'brand', 'description', 'categories', 'weight', 'color', 'size', 'uom', 'classification', 'manufacturer_part_id', 'manufacturer_name', 'tolerance_percentage']);
 
             // Sample row using first active product, or a fallback
             $sample = Product::with('categories')->where('is_active', true)->first();
@@ -270,9 +272,10 @@ class ProductController extends Controller
                     $sample->classification ?? '',
                     $sample->manufacturer_part_id ?? '',
                     $sample->manufacturer_name ?? '',
+                    $sample->tolerance_percentage ?? 0.00,
                 ]);
             } else {
-                fputcsv($file, ['Sample Product', 'SKU-EXAMPLE-001', 100000, 1, 'BrandName', 'Product description here', 'Electronics|Laptops', 1.5, '#FF0000', 'L', 'EA', 'UNSPSC-10101502', 'MFG-PART-XYZ', 'Global Mfg Corp']);
+                fputcsv($file, ['Sample Product', 'SKU-EXAMPLE-001', 100000, 1, 'BrandName', 'Product description here', 'Electronics|Laptops', 1.5, '#FF0000', 'L', 'EA', 'UNSPSC-10101502', 'MFG-PART-XYZ', 'Global Mfg Corp', 10.00]);
             }
 
             fclose($file);
@@ -335,6 +338,7 @@ class ProductController extends Controller
         $classIdx  = array_search('classification', $headers);
         $mfgPartIdx = array_search('manufacturer_part_id', $headers);
         $mfgNameIdx = array_search('manufacturer_name', $headers);
+        $toleranceIdx = array_search('tolerance_percentage', $headers);
 
         // Pre-load all categories keyed by lowercase name for fast lookup
         $allCategories = Category::all()->keyBy(fn($c) => strtolower(trim($c->name)));
@@ -393,6 +397,7 @@ class ProductController extends Controller
                     'classification'       => $classIdx !== false ? (trim($row[$classIdx] ?? '') ?: null) : null,
                     'manufacturer_part_id' => $mfgPartIdx !== false ? (trim($row[$mfgPartIdx] ?? '') ?: null) : null,
                     'manufacturer_name'    => $mfgNameIdx !== false ? (trim($row[$mfgNameIdx] ?? '') ?: null) : null,
+                    'tolerance_percentage' => $toleranceIdx !== false ? (is_numeric(trim($row[$toleranceIdx] ?? '')) ? (float)trim($row[$toleranceIdx]) : 0.00) : 0.00,
                 ];
 
                 $product = Product::updateOrCreate(['sku' => $sku], $data);

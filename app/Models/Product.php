@@ -26,6 +26,7 @@ class Product extends Model
         'classification',
         'manufacturer_part_id',
         'manufacturer_name',
+        'tolerance_percentage',
     ];
 
     public function images()

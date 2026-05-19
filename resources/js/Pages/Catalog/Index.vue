@@ -367,14 +367,14 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                        min="0" :max="Math.ceil(priceRange.max / 1000) * 1000" 
                        step="1000"
                        v-model.number="filterState.max_price"
-                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#dcae96]">
+                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#e96a25]">
             </div>
 
             <!-- Brands -->
             <h3 class="font-bold text-gray-900 mb-4 text-sm uppercase tracking-wider">Brand</h3>
             <ul class="space-y-3">
                 <li v-for="brand in brands" :key="brand.brand" class="flex items-center text-sm text-gray-600">
-                    <input type="checkbox" :value="brand.brand" v-model="filterState.brands" class="h-4 w-4 text-[#dcae96] focus:ring-[#e96a25] border-gray-300 rounded mr-3">
+                    <input type="checkbox" :value="brand.brand" v-model="filterState.brands" class="h-4 w-4 text-[#e96a25] focus:ring-[#e96a25] border-gray-300 rounded mr-3">
                     <span>{{ brand.brand }}</span>
                     <span class="ml-auto text-[#e96a25] text-[10px] font-bold bg-[#fcece3] px-2 py-0.5 rounded-full">{{ brand.count }}</span>
                 </li>
@@ -415,10 +415,10 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
 
                     <!-- Grid/List View Toggles -->
                     <div class="flex border border-gray-200 rounded overflow-hidden">
-                        <button @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-[#1a2b4c] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'" class="p-1.5 transition-colors">
+                        <button @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-[#e96a25] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'" class="p-1.5 transition-colors">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                         </button>
-                        <button @click="viewMode = 'list'" :class="viewMode === 'list' ? 'bg-[#1a2b4c] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'" class="p-1.5 transition-colors">
+                        <button @click="viewMode = 'list'" :class="viewMode === 'list' ? 'bg-[#e96a25] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'" class="p-1.5 transition-colors">
                             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg>
                         </button>
                     </div>
@@ -518,7 +518,7 @@ const generatePlaceholder = (id) => `https://picsum.photos/seed/${id}/400/400`;
                                     @click.prevent="addToCart(product)"
                                     :disabled="form.processing && form.product_id === product.id"
                                     class="flex-grow h-8 sm:h-10 flex items-center justify-center rounded text-white transition-all duration-300"
-                                    :class="addedProduct === product.id ? 'bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20' : 'bg-[#1a2b4c] hover:bg-[#121f38] hover:shadow-lg hover:shadow-[#1a2b4c]/30'"
+                                    :class="addedProduct === product.id ? 'bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20' : 'bg-[#d85a15] hover:bg-[#e96a25] hover:shadow-lg hover:shadow-[#e96a25]/30'"
                                     :title="addedProduct === product.id ? 'Added' : 'Quick Add'"
                                 >
                                     <svg v-if="addedProduct === product.id" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>

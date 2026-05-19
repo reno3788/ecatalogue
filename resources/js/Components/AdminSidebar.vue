@@ -25,12 +25,11 @@ const hasSidebar = computed(() => {
             <div class="flex items-center space-x-2 px-4 mb-4">
                 <template v-if="$page.props.appSettings?.logo_url">
                     <img :src="$page.props.appSettings.logo_url" alt="Logo" class="max-h-8 object-contain" />
-                    <span class="font-bold text-sm tracking-tight text-[#1a2b4c] uppercase ml-1">{{ $page.props.appSettings?.name }}</span>
                 </template>
                 <template v-else>
                     <span class="font-black text-2xl tracking-tighter text-[#1a2b4c] italic">M</span>
                     <div class="flex flex-col leading-none">
-                        <span class="font-bold text-sm tracking-widest text-[#1a2b4c]">MODERN</span>
+                        <span class="font-bold text-sm tracking-widest text-[#1a2b4c] uppercase">{{ $page.props.appSettings?.name || 'MODERN' }}</span>
                         <span class="font-light text-xs tracking-widest text-gray-500">ADMIN</span>
                     </div>
                 </template>

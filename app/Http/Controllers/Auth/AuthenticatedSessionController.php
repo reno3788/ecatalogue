@@ -36,7 +36,7 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
         $supplierRoles = ['supplier_admin', 'supplier_processor', 'supplier_approver'];
         if ($user && ($user->hasRole('admin') || $user->hasAnyRole($supplierRoles))) {
-            return redirect()->intended(route('admin.dashboard', absolute: false));
+            return redirect()->route('admin.dashboard');
         }
 
         return redirect()->intended(route('dashboard', absolute: false))->with('success', "You're logged in!");

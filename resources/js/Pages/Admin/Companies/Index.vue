@@ -39,6 +39,7 @@ const defaultFormData = {
     punchout_url: '',
     punchout_identity: '',
     punchout_shared_secret: '',
+    bargaining_enabled: true,
 };
 
 const form = useForm({ ...defaultFormData });
@@ -79,6 +80,7 @@ const openEditModal = (company) => {
     form.punchout_url = company.punchout_url || '';
     form.punchout_identity = company.punchout_identity || '';
     form.punchout_shared_secret = company.punchout_shared_secret || '';
+    form.bargaining_enabled = company.hasOwnProperty('bargaining_enabled') ? !!company.bargaining_enabled : true;
     showFormModal.value = true;
 };
 
@@ -362,6 +364,18 @@ const executeDelete = () => {
                         <InputLabel for="taxaddress" value="Registered Tax Address" />
                         <textarea id="taxaddress" v-model="form.taxaddress" rows="2" class="mt-1 block w-full border-gray-300 rounded-xl shadow-sm focus:border-[#e96a25] focus:ring-[#e96a25] text-sm" placeholder="Official registered tax address (if different from operational)"></textarea>
                         <InputError class="mt-2" :message="form.errors.taxaddress" />
+                    </div>
+
+                    <div class="border-t border-dashed border-gray-200 my-6"></div>
+
+                    <!-- SECTION: Bargaining Integration -->
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-sm font-bold text-gray-800">Bargaining Option</h4>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="form.bargaining_enabled" class="sr-only peer">
+                            <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#e96a25]"></div>
+                            <span class="ms-3 text-xs font-medium text-gray-700">Enable Bargaining</span>
+                        </label>
                     </div>
 
                     <div class="border-t border-dashed border-gray-200 my-6"></div>

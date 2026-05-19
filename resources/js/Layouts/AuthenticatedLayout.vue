@@ -55,6 +55,13 @@ const fetchNotifications = async () => {
         const response = await axios.get(route('notifications.unread'));
         notifications.value = response.data.notifications || response.data;
     } catch (e) {
+        if (e.response?.status === 401 || e.response?.status === 419) {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+            return;
+        }
         console.error('Failed to fetch notifications', e);
     }
 };
@@ -114,11 +121,16 @@ const timeAgo = (dateStr) => {
                                     <!-- Logo (Only shown if NOT admin, as admin has the sidebar logo) -->
                                     <div v-if="!hasSidebar" class="flex shrink-0 items-center">
                                         <Link :href="route('dashboard')" class="flex items-center space-x-2">
-                                            <span class="font-black text-2xl tracking-tighter text-[#1a2b4c] italic">M</span>
-                                            <div class="flex flex-col leading-none">
-                                                <span class="font-bold text-sm tracking-widest text-[#1a2b4c]">MODERN</span>
-                                                <span class="font-light text-xs tracking-widest text-gray-500">CATALOGUE</span>
-                                            </div>
+                                            <template v-if="$page.props.appSettings?.logo_url">
+                                                <img :src="$page.props.appSettings.logo_url" alt="Logo" class="h-8 w-auto object-contain hover:scale-105 transition-transform" />
+                                            </template>
+                                            <template v-else>
+                                                <span class="font-black text-2xl tracking-tighter text-[#1a2b4c] italic">M</span>
+                                                <div class="flex flex-col leading-none">
+                                                    <span class="font-bold text-sm tracking-widest text-[#1a2b4c] uppercase">{{ $page.props.appSettings?.name || 'MODERN' }}</span>
+                                                    <span class="font-light text-xs tracking-widest text-gray-500">CATALOGUE</span>
+                                                </div>
+                                            </template>
                                         </Link>
                                     </div>
 
@@ -328,6 +340,7 @@ const timeAgo = (dateStr) => {
                         >
                             <div class="space-y-1 pb-3 pt-2">
                                 <ResponsiveNavLink
+                                    v-if="!hasSidebar"
                                     :href="route('dashboard')"
                                     :active="route().current('dashboard')"
                                 >
@@ -346,13 +359,48 @@ const timeAgo = (dateStr) => {
                                 >
                                     Cart
                                 </ResponsiveNavLink>
-                                <ResponsiveNavLink
-                                    v-if="hasSidebar"
-                                    :href="isAdmin ? route('admin.dashboard') : route('admin.orders.index')"
-                                    :active="route().current('admin.*')"
-                                >
-                                    Admin Panel
-                                </ResponsiveNavLink>
+                                <template v-if="hasSidebar">
+                                    <div class="border-t border-gray-200 pb-1 pt-2 mt-2">
+                                        <div class="px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                                            Admin Controls
+                                        </div>
+                                        <ResponsiveNavLink :href="route('admin.dashboard')" :active="route().current('admin.dashboard')">
+                                            Dashboard
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.orders.index')" :active="route().current('admin.orders.*')">
+                                            Orders
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.products.index')" :active="route().current('admin.products.*')">
+                                            Products
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.categories.index')" :active="route().current('admin.categories.*')">
+                                            Categories
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.companies.index')" :active="route().current('admin.companies.*')">
+                                            Companies
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.client-price-lists.index')" :active="route().current('admin.client-price-lists.*')">
+                                            Client Price List
+                                        </ResponsiveNavLink>
+                                    </div>
+                                    <div v-if="isAdmin" class="border-t border-gray-200 pb-1 pt-2 mt-2">
+                                        <div class="px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                                            Configuration
+                                        </div>
+                                        <ResponsiveNavLink :href="route('admin.users.index')" :active="route().current('admin.users.*')">
+                                            Users Config
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.workflows.index')" :active="route().current('admin.workflows.*')">
+                                            Workflow Approval
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.app-settings.index')" :active="route().current('admin.app-settings.*')">
+                                            App Settings
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink :href="route('admin.audit-logs.index')" :active="route().current('admin.audit-logs.*')">
+                                            Audit Trail
+                                        </ResponsiveNavLink>
+                                    </div>
+                                </template>
                             </div>
 
                             <!-- Responsive Settings Options -->

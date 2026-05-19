@@ -24,10 +24,12 @@ class Company extends Model
         'punchout_url',
         'punchout_identity',
         'punchout_shared_secret',
+        'bargaining_enabled',
     ];
 
     protected $casts = [
         'punchout_enabled' => 'boolean',
+        'bargaining_enabled' => 'boolean',
     ];
 
     /**

@@ -42,6 +42,7 @@ class CompanyController extends Controller
             'punchout_url' => 'nullable|string|max:1000',
             'punchout_identity' => 'nullable|string|max:255',
             'punchout_shared_secret' => 'nullable|string|max:255',
+            'bargaining_enabled' => 'boolean',
         ]);
 
 
@@ -71,6 +72,7 @@ class CompanyController extends Controller
             'punchout_url' => 'nullable|string|max:1000',
             'punchout_identity' => 'nullable|string|max:255',
             'punchout_shared_secret' => 'nullable|string|max:255',
+            'bargaining_enabled' => 'boolean',
         ]);
 
         $company->update($validated);

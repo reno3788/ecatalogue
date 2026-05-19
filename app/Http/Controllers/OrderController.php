@@ -11,47 +11,7 @@ class OrderController extends Controller
 {
     public function index(Request $request)
     {
-        $user = $request->user();
-        $isSupplierApprover = $user->hasRole('supplier_approver');
-
-        // Ensure the user belongs to a company or is a supplier approver
-        if (!$user->company_id && !$isSupplierApprover) {
-            return Inertia::render('Orders/Index', [
-                'orders' => ['data' => [], 'links' => []],
-                'filters' => $request->only(['month', 'status']),
-                'statuses' => ['RFQ', 'Submitted', 'Approved', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
-            ])->with('error', 'You are not assigned to a company.');
-        }
-
-        if ($isSupplierApprover) {
-            $query = Order::query();
-        } else {
-            $query = Order::where('company_id', $user->company_id);
-        }
-
-        $query->with(['user'])
-            ->withCount('items')
-            ->latest();
-
-        // Month Filter (expects format YYYY-MM)
-        if ($request->filled('month')) {
-            $date = Carbon::parse($request->month);
-            $query->whereYear('created_at', $date->year)
-                  ->whereMonth('created_at', $date->month);
-        }
-
-        // Status Filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        $orders = $query->paginate(10)->withQueryString();
-
-        return Inertia::render('Orders/Index', [
-            'orders' => $orders,
-            'filters' => $request->only(['month', 'status']),
-            'statuses' => ['RFQ', 'Submitted', 'Approved', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
-        ]);
+        return redirect()->route('dashboard', $request->query());
     }
     
     public function show(Order $order)
@@ -62,7 +22,16 @@ class OrderController extends Controller
             abort(403);
         }
         
-        $order->load(['items.product', 'user', 'approvalLogs.user']);
+        $order->load([
+            'company', 
+            'items.product', 
+            'user', 
+            'approvalLogs.user', 
+            'histories.user', 
+            'carrier',
+            'shipments.carrier',
+            'shipments.items.orderItem.product'
+        ]);
         return response()->json($order);
     }
 
@@ -75,7 +44,7 @@ class OrderController extends Controller
         }
 
         $rules = [
-            'status' => 'required|in:PO,Completed',
+            'status' => 'required|in:PO',
         ];
 
         if ($request->input('status') === 'PO') {
@@ -85,11 +54,8 @@ class OrderController extends Controller
         $request->validate($rules);
 
         // Double safeguard: Users can only advance their permitted states
-        if ($request->status === 'PO' && $order->status !== 'Quotation') {
+        if ($request->status === 'PO' && !in_array($order->status, ['Approved', 'Quotation'])) {
             return back()->withErrors(['status' => 'You can only generate a PO once a valid Quotation is received.']);
-        }
-        if ($request->status === 'Completed' && $order->status !== 'Shipped') {
-            return back()->withErrors(['status' => 'Receipt confirmation is only permitted after the order is shipped.']);
         }
 
         $updateData = ['status' => $request->status];

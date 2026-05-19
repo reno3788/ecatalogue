@@ -10,11 +10,16 @@ import Footer from '@/Components/Footer.vue';
             <!-- Branding Header -->
             <div class="mb-8 text-center animate-fade-in">
                 <Link :href="route('catalog.index')" class="flex flex-col items-center space-y-2">
-                    <span class="font-black text-5xl tracking-tighter text-[#1a2b4c] italic hover:scale-105 transition-transform">M</span>
-                    <div class="flex flex-col leading-none">
-                        <span class="font-bold text-lg tracking-widest text-[#1a2b4c]">MODERN</span>
-                        <span class="font-light text-xs tracking-widest text-gray-500 mt-1">E-PROCUREMENT PORTAL</span>
-                    </div>
+                    <template v-if="$page.props.appSettings?.logo_url">
+                        <img :src="$page.props.appSettings.logo_url" alt="Logo" class="h-16 w-auto object-contain hover:scale-105 transition-transform" />
+                    </template>
+                    <template v-else>
+                        <span class="font-black text-5xl tracking-tighter text-[#1a2b4c] italic hover:scale-105 transition-transform">M</span>
+                        <div class="flex flex-col leading-none text-center">
+                            <span class="font-bold text-lg tracking-widest text-[#1a2b4c] uppercase">{{ $page.props.appSettings?.name || 'MODERN' }}</span>
+                            <span class="font-light text-xs tracking-widest text-gray-500 mt-1">E-PROCUREMENT PORTAL</span>
+                        </div>
+                    </template>
                 </Link>
             </div>
 

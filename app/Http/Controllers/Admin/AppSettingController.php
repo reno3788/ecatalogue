@@ -17,9 +17,11 @@ class AppSettingController extends Controller
     public function index()
     {
         $settings = AppSetting::first() ?? new AppSetting();
+        $carriers = \App\Models\Carrier::all();
 
         return Inertia::render('Admin/AppSettings/Index', [
             'settings' => $settings,
+            'carriers' => $carriers,
         ]);
     }
 

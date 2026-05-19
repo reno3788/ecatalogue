@@ -99,8 +99,7 @@ const breadcrumbItems = computed(() => {
     if (origin === 'orders') {
         return [
             { label: 'Dashboard', href: route('dashboard'), icon: 'dashboard' },
-            { label: 'My Orders', href: route('orders.index') },
-            { label: orderId ? `Order #${orderId}` : 'Order Detail', href: route('orders.index', orderId ? { open_order: orderId } : {}) }
+            { label: orderId ? `Order #${orderId}` : 'Order Detail', href: route('dashboard', orderId ? { open_order: orderId } : {}) }
         ];
     }
     if (origin === 'dashboard') {
@@ -210,7 +209,7 @@ const breadcrumbItems = computed(() => {
                             @click="addToCart"
                             :disabled="form.processing"
                             class="w-full h-14 flex items-center justify-center rounded-lg text-white text-lg font-bold transition-all duration-300"
-                            :class="addedToCart ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30' : 'bg-[#e96a25] hover:bg-[#d85a15] hover:shadow-xl hover:shadow-[#e96a25]/30'"
+                            :class="addedToCart ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/30' : 'bg-[#d85a15] hover:bg-[#e96a25] hover:shadow-xl hover:shadow-[#e96a25]/30'"
                         >
                             <svg v-if="addedToCart" class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             <svg v-else class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>

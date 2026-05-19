@@ -38,11 +38,11 @@ class WorkflowService
 
     /**
      * Determines if the requested action represents the target workflow advancement window.
-     * In this system, the workflow gates the specific transition between 'Submitted' and 'Approved'.
+     * In this system, the workflow gates the specific transition between 'Submitted' and 'Approved'/'Quotation'.
      */
     public function isWorkflowTransition(string $currentStatus, string $targetStatus): bool
     {
-        return ($currentStatus === 'Submitted' && $targetStatus === 'Approved');
+        return ($currentStatus === 'Submitted' && in_array($targetStatus, ['Approved', 'Quotation']));
     }
 
     /**
@@ -67,7 +67,7 @@ class WorkflowService
         // regardless of whether the active viewing user is an existing approver!
         if ($pendingSteps->isEmpty()) {
             if ($order->status === 'Submitted') {
-                $order->update(['status' => 'Approved']);
+                $order->update(['status' => 'Quotation']);
             }
             return false; // Logic cycle effectively terminated
         }
@@ -104,7 +104,7 @@ class WorkflowService
         
         // Immediate fallback if no controls active
         if (!$workflow) {
-            return 'Approved';
+            return 'Quotation';
         }
 
         $pendingSteps = $this->getPendingSteps($order, $workflow);
@@ -140,7 +140,7 @@ class WorkflowService
         $remainingCount = $this->getPendingSteps($order, $workflow)->count();
 
         // If ZERO remaining, entire chain resolved! Elevate to target status!
-        return $remainingCount === 0 ? 'Approved' : 'Submitted';
+        return $remainingCount === 0 ? 'Quotation' : 'Submitted';
     }
 
     /**

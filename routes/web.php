@@ -36,6 +36,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::post('/orders/{order}/negotiation/bargain', [App\Http\Controllers\OrderNegotiationController::class, 'requestBetterPrice'])->name('orders.negotiation.bargain');
+    Route::post('/orders/{order}/negotiation/accept', [App\Http\Controllers\OrderNegotiationController::class, 'acceptOffer'])->name('orders.negotiation.accept');
 });
 
 Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])
@@ -54,6 +56,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 });
 
+use App\Http\Controllers\Admin\CarrierController;
+
 // Admin Strictly Protected Routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('users', UserController::class);
@@ -62,6 +66,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/app-settings', [AppSettingController::class, 'update'])->name('app-settings.update');
     Route::post('/app-settings/test-smtp', [AppSettingController::class, 'testSmtp'])->name('app-settings.test-smtp');
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::resource('carriers', CarrierController::class)->except(['create', 'edit', 'show']);
 });
 
 // Shared Admin / Supplier Management Routes
@@ -91,6 +96,10 @@ Route::middleware(['auth', 'role:admin,supplier_admin,supplier_processor,supplie
     Route::post('/orders/batch-status', [AdminOrderController::class, 'batchUpdateStatus'])->name('orders.batch-update-status');
     Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
     Route::patch('/orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.update-status');
+    Route::get('/orders/{order}/shipments/create', [AdminOrderController::class, 'createShipmentForm'])->name('orders.create-shipment-form');
+    Route::post('/orders/{order}/shipments', [AdminOrderController::class, 'createShipment'])->name('orders.create-shipment');
+    Route::post('/orders/{order}/invoice', [AdminOrderController::class, 'uploadInvoice'])->name('orders.upload-invoice');
+    Route::post('/orders/{order}/negotiation/offer', [App\Http\Controllers\OrderNegotiationController::class, 'submitOffer'])->name('orders.negotiation.offer');
 });
 
 

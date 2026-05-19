@@ -42,6 +42,14 @@ class AuditLogController extends Controller
             });
         }
 
+        // Event Date Range Filtering
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+
         $logs = $query->paginate(20)->through(function($log) {
             // Derive clean model name from App\Models\AppSetting -> 'App Setting'
             $rawModel = class_basename($log->auditable_type);
@@ -85,7 +93,7 @@ class AuditLogController extends Controller
 
         return Inertia::render('Admin/AuditLogs/Index', [
             'logs' => $logs,
-            'filters' => $request->only(['event', 'user_id', 'search']),
+            'filters' => $request->only(['event', 'user_id', 'search', 'start_date', 'end_date']),
             'users' => User::orderBy('name')->get(['id', 'name', 'email']),
         ]);
     }

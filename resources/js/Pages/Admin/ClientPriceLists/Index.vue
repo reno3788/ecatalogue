@@ -184,6 +184,12 @@ const onProductSearchFocus = () => {
     }
 };
 
+const onProductSearchBlur = () => {
+    setTimeout(() => {
+        isProductDropdownOpen.value = false;
+    }, 250);
+};
+
 // Actions
 const openAddModal = () => {
     addForm.reset();
@@ -625,7 +631,7 @@ const getPriceDiffBadge = (item) => {
                                 :value="productSearchQuery"
                                 @input="onProductSearchInput"
                                 @focus="onProductSearchFocus"
-                                @blur="setTimeout(() => isProductDropdownOpen = false, 250)"
+                                @blur="onProductSearchBlur"
                                 placeholder="Search by product name or SKU..."
                                 class="w-full text-sm rounded-xl border-gray-200 focus:border-[#e96a25] focus:ring focus:ring-[#e96a25]/20 py-2.5 pl-3.5 pr-10 font-semibold text-gray-800"
                                 required

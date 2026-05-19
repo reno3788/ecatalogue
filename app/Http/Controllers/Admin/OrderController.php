@@ -23,7 +23,7 @@ class OrderController extends Controller
     }
     public function index(Request $request)
     {
-        $query = Order::with(['company', 'user'])
+        $query = Order::with(['company', 'user', 'carrier'])
             ->withCount('items')
             ->latest();
 
@@ -54,16 +54,19 @@ class OrderController extends Controller
             'orders' => $orders,
             'companies' => $companies,
             'filters' => $request->only(['month', 'status', 'company_id']),
-            'statuses' => ['RFQ', 'Submitted', 'Approved', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
+            'statuses' => ['RFQ', 'Submitted', 'Approved', 'Quotation', 'PO', 'Partially Shipped', 'Shipped', 'Invoiced', 'Completed', 'Rejected'],
+            'carriers' => \App\Models\Carrier::all(),
         ]);
     }
 
     public function updateStatus(Request $request, Order $order)
     {
         $request->validate([
-            'status' => 'required|in:RFQ,Submitted,Approved,Quotation,PO,Invoiced,Shipped,Completed,Rejected',
+            'status' => 'required|in:RFQ,Submitted,Approved,Quotation,PO,Partially Shipped,Shipped,Invoiced,Completed,Rejected',
             'rejection_reason' => 'required_if:status,Rejected|nullable|string|max:500',
             'note' => 'nullable|string|max:500',
+            'carrier_id' => 'required_if:status,Shipped|nullable|exists:carriers,id',
+            'tracking_number' => 'required_if:status,Shipped|nullable|string|max:255',
         ]);
 
         // 1. Intercept specific Workflow Triggers: Moving FROM Submitted TO Approved
@@ -80,18 +83,27 @@ class OrderController extends Controller
                 // Final promotion if complete, otherwise remains in Submitted for next step!
                 $order->update(['status' => $nextStatus]);
 
-                if ($nextStatus === 'Approved') {
+                if ($nextStatus === 'Quotation') {
                     $suppliers = \App\Models\User::whereHas('roles', function($q) {
                         $q->whereIn('name', ['admin', 'supplier_processor', 'supplier_approver']);
                     })->get();
-                    \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Order #' . $order->id . ' has been Approved. Please send a quotation.'));
+                    \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Order #' . $order->id . ' has been Approved and moved to Quotation.'));
                     
                     // Notify buyers
-                    $this->notifyCompanyBuyers($order, 'Approved');
+                    $this->notifyCompanyBuyers($order, 'Quotation');
+
+                    try {
+                        $recipient = $order->user;
+                        if ($recipient && $recipient->email) {
+                            Mail::to($recipient->email)->send(new QuotationMail($order));
+                        }
+                    } catch (\Exception $mailEx) {
+                        Log::error("Workflow completion quotation email failure for Order {$order->id}: " . $mailEx->getMessage());
+                    }
                 }
                 
-                $msg = ($nextStatus === 'Approved') 
-                    ? "All approval steps complete. Order fully Approved!"
+                $msg = ($nextStatus === 'Quotation') 
+                    ? "All approval steps complete. Order successfully updated to Quotation!"
                     : "Workflow step approved and logged successfully. Order remains pending next step.";
                     
                 return back()->with([
@@ -122,7 +134,7 @@ class OrderController extends Controller
         } else {
             $data['rejection_reason'] = null;
             
-            // Optional: Log standard promotion trails if transitioning beyond workflow
+            // Log standard promotion trails if transitioning beyond workflow
             if ($order->status !== $request->status) {
                 \App\Models\OrderApprovalLog::create([
                     'order_id' => $order->id,
@@ -131,19 +143,22 @@ class OrderController extends Controller
                     'note' => 'Manually promoted state to ' . $request->status
                 ]);
             }
+
+            // Save dynamic shipping information if status is Shipped
+            if ($request->status === 'Shipped') {
+                $data['carrier_id'] = $request->carrier_id;
+                $data['tracking_number'] = $request->tracking_number;
+            }
         }
 
         $order->update($data);
 
-        // Notify if it's manually approved
-        if ($request->status === 'Approved') {
+        // Notify if it's manually approved or updated to Quotation
+        if (in_array($request->status, ['Approved', 'Quotation'])) {
             $suppliers = \App\Models\User::whereHas('roles', function($q) {
                 $q->whereIn('name', ['admin', 'supplier_processor', 'supplier_approver']);
             })->get();
-            \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Order #' . $order->id . ' has been manually Approved. Please send a quotation.'));
-            
-            // Notify buyers
-            $this->notifyCompanyBuyers($order, 'Approved');
+            \Illuminate\Support\Facades\Notification::send($suppliers, new \App\Notifications\OrderStatusNotification($order, 'Order #' . $order->id . ' has been updated to ' . $request->status . '.'));
         }
 
         // Notify buyers for Invoiced, Shipped, or other statuses (manual update fallback)
@@ -151,8 +166,8 @@ class OrderController extends Controller
             $this->notifyCompanyBuyers($order, $request->status);
         }
 
-        // 3. Event-Driven Action: Auto-send premium notification if promoting to Quotation phase.
-        if ($request->status === 'Quotation') {
+        // 3. Event-Driven Action: Auto-send premium notification if promoting to Approved or Quotation phase.
+        if (in_array($request->status, ['Approved', 'Quotation'])) {
             try {
                 // Notify buyers
                 $this->notifyCompanyBuyers($order, 'Quotation');
@@ -163,7 +178,7 @@ class OrderController extends Controller
                     
                     return back()->with([
                         'flash_type' => 'success',
-                        'flash_message' => 'Success! Quotation PDF generated and emailed to client.',
+                        'flash_message' => 'Success! Order status updated to ' . $request->status . ' and Quotation PDF generated & emailed to client.',
                     ]);
                 }
             } catch (\Exception $mailEx) {
@@ -171,7 +186,7 @@ class OrderController extends Controller
                 
                 return back()->with([
                     'flash_type' => 'warning',
-                    'flash_message' => 'Status updated, but email dispatch failed. Please review SMTP configurations.',
+                    'flash_message' => 'Status updated to ' . $request->status . ', but email dispatch failed. Please review SMTP configurations.',
                 ]);
             }
         }
@@ -187,7 +202,7 @@ class OrderController extends Controller
         $request->validate([
             'order_ids' => 'required|array',
             'order_ids.*' => 'exists:orders,id',
-            'status' => 'required|in:RFQ,Submitted,Approved,Quotation,PO,Invoiced,Shipped,Completed,Rejected',
+            'status' => 'required|in:RFQ,Submitted,Approved,Quotation,PO,Partially Shipped,Shipped,Invoiced,Completed,Rejected',
             'rejection_reason' => 'required_if:status,Rejected|nullable|string|max:500',
         ]);
 
@@ -197,15 +212,16 @@ class OrderController extends Controller
 
         // Define chronological hierarchy: only allow forward transitions (lower index to higher index)
         $statusRank = [
-            'RFQ'       => 1,
-            'Submitted' => 2,
-            'Approved'  => 3,
-            'Quotation' => 4,
-            'PO'        => 5,
-            'Invoiced'  => 6,
-            'Shipped'   => 7,
-            'Completed' => 8,
-            'Rejected'  => 9,
+            'RFQ'               => 1,
+            'Submitted'         => 2,
+            'Approved'          => 3,
+            'Quotation'         => 4,
+            'PO'                => 5,
+            'Partially Shipped' => 6,
+            'Shipped'           => 7,
+            'Invoiced'          => 8,
+            'Completed'         => 9,
+            'Rejected'          => 10,
         ];
 
         $targetStatus = $request->status;
@@ -233,8 +249,8 @@ class OrderController extends Controller
                 continue; 
             }
 
-            // CASE: Attempting to move TO Approved (Triggers potential Workflow gating)
-            if ($targetStatus === 'Approved') {
+            // CASE: Attempting to move TO Approved/Quotation (Triggers potential Workflow gating)
+            if (in_array($targetStatus, ['Approved', 'Quotation'])) {
                 // Does this order transition trigger a workflow lockdown?
                 if ($this->workflowService->isWorkflowTransition($order->status, $targetStatus)) {
                     // Check specific permission
@@ -253,10 +269,6 @@ class OrderController extends Controller
                     }
                     continue;
                 } 
-                
-                // If it's already Approved or in non-workflow status, does user still allow manual jump?
-                // In general updateStatus allows it, so loop through. 
-                // But strictly, only admins should jump beyond it. Let's assume standard manual jump fallback.
             }
 
             // Standard Manual / Generic Update
@@ -300,7 +312,16 @@ class OrderController extends Controller
     
     public function show(Request $request, Order $order)
     {
-        $order->load(['company', 'user', 'items.product', 'approvalLogs.user']);
+        $order->load([
+            'company', 
+            'user', 
+            'items.product', 
+            'approvalLogs.user', 
+            'histories.user', 
+            'carrier',
+            'shipments.carrier',
+            'shipments.items.orderItem.product'
+        ]);
         
         // Inject runtime accessibility calculated metadata directly into response payload
         $wf = $this->workflowService->getApplicableWorkflow($order);
@@ -310,12 +331,195 @@ class OrderController extends Controller
         $orderData['workflow_enabled'] = !!$wf;
         $orderData['can_approve'] = $isWfTrans ? $this->workflowService->canUserApprove($order, $request->user()) : false;
         
+        // Append the latest company-specific price for syncing
+        foreach ($orderData['items'] as &$item) {
+            if (isset($item['product'])) {
+                $productModel = $order->items->firstWhere('id', $item['id'])->product;
+                if ($productModel) {
+                    $item['latest_sync_price'] = $productModel->getPriceForCompany($order->company_id);
+                }
+            }
+        }
+        
         return response()->json($orderData);
+    }
+
+    public function createShipmentForm(Order $order)
+    {
+        $order->load([
+            'company',
+            'user',
+            'items.product',
+            'shipments.carrier',
+            'shipments.items.orderItem.product'
+        ]);
+
+        $carriers = \App\Models\Carrier::all();
+
+        return Inertia::render('Admin/Orders/CreateShipment', [
+            'order' => $order,
+            'carriers' => $carriers,
+        ]);
+    }
+
+    public function createShipment(Request $request, Order $order)
+    {
+        $request->validate([
+            'carrier_id' => 'required|exists:carriers,id',
+            'tracking_number' => 'required|string|max:255',
+            'notes' => 'nullable|string|max:1000',
+            'items' => 'required|array',
+            'items.*.order_item_id' => 'required|exists:order_items,id',
+            'items.*.quantity' => 'required|integer|min:0',
+        ]);
+
+        $hasShippedQty = false;
+        foreach ($request->items as $itemData) {
+            $orderItem = \App\Models\OrderItem::findOrFail($itemData['order_item_id']);
+            
+            $previouslyShipped = \App\Models\ShipmentItem::where('order_item_id', $orderItem->id)->sum('quantity');
+            $remaining = $orderItem->quantity - $previouslyShipped;
+
+            if ($itemData['quantity'] > 0) {
+                $hasShippedQty = true;
+            }
+
+            if ($itemData['quantity'] > $remaining) {
+                return back()->withErrors([
+                    'items' => "The quantity for item '{$orderItem->product->name}' cannot exceed the remaining unshipped quantity of {$remaining}."
+                ]);
+            }
+        }
+
+        if (!$hasShippedQty) {
+            return back()->withErrors([
+                'items' => "At least one item must have a shipping quantity greater than 0."
+            ]);
+        }
+
+        $shipment = null;
+        \Illuminate\Support\Facades\DB::transaction(function() use ($request, $order, &$shipment) {
+            $shipment = \App\Models\Shipment::create([
+                'order_id' => $order->id,
+                'carrier_id' => $request->carrier_id,
+                'tracking_number' => $request->tracking_number,
+                'notes' => $request->notes,
+            ]);
+
+            foreach ($request->items as $itemData) {
+                if ($itemData['quantity'] > 0) {
+                    \App\Models\ShipmentItem::create([
+                        'shipment_id' => $shipment->id,
+                        'order_item_id' => $itemData['order_item_id'],
+                        'quantity' => $itemData['quantity'],
+                    ]);
+                }
+            }
+
+            $settings = \App\Models\AppSetting::first();
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.delivery_note', [
+                'shipment' => $shipment->load(['order.user', 'order.company', 'carrier', 'items.orderItem.product']),
+                'order' => $order,
+                'settings' => $settings
+            ]);
+
+            $pdfDir = storage_path('app/public/delivery_notes');
+            if (!file_exists($pdfDir)) {
+                mkdir($pdfDir, 0755, true);
+            }
+            $pdfPath = 'delivery_notes/DN_' . str_pad($shipment->id, 6, '0', STR_PAD_LEFT) . '_' . time() . '.pdf';
+            $pdf->save(storage_path('app/public/' . $pdfPath));
+
+            $shipment->update(['delivery_note_path' => $pdfPath]);
+
+            $allFullyShipped = true;
+            foreach ($order->items as $orderItem) {
+                $totalShipped = \App\Models\ShipmentItem::where('order_item_id', $orderItem->id)->sum('quantity');
+                if ($totalShipped < $orderItem->quantity) {
+                    $allFullyShipped = false;
+                    break;
+                }
+            }
+
+            $nextStatus = $allFullyShipped ? 'Shipped' : 'Partially Shipped';
+            $order->update(['status' => $nextStatus]);
+
+            \App\Models\OrderApprovalLog::create([
+                'order_id' => $order->id,
+                'user_id' => $request->user()->id,
+                'action' => 'Shipment Created',
+                'note' => "Created Shipment #DN-" . str_pad($shipment->id, 6, '0', STR_PAD_LEFT) . " via " . ($shipment->carrier->name ?? 'Manual Delivery') . ". Tracking Code: " . $shipment->tracking_number
+            ]);
+
+            try {
+                $recipient = $order->user;
+                if ($recipient && $recipient->email) {
+                    Mail::to($recipient->email)->send(new \App\Mail\DeliveryNoteMail($shipment));
+                }
+            } catch (\Exception $mailEx) {
+                Log::error("Delivery Note email failure for Shipment {$shipment->id}: " . $mailEx->getMessage());
+            }
+
+            $this->notifyCompanyBuyers($order, $nextStatus);
+        });
+
+        return redirect()->route('admin.orders.index', ['open_order' => $order->id, 'tab' => 'shipping'])->with([
+            'flash_type' => 'success',
+            'flash_message' => "Shipment #DN-" . str_pad($shipment->id, 6, '0', STR_PAD_LEFT) . " successfully generated! Delivery note has been emailed to the buyer."
+        ]);
+    }
+
+    public function uploadInvoice(Request $request, Order $order)
+    {
+        $request->validate([
+            'invoice_file' => 'required|file|mimes:pdf,jpg,jpeg,png,xlsx,docx|max:10240',
+            'additional_documents' => 'nullable|array',
+            'additional_documents.*' => 'file|mimes:pdf,jpg,jpeg,png,xlsx,docx|max:10240',
+        ]);
+
+        \Illuminate\Support\Facades\DB::transaction(function() use ($request, $order) {
+            if ($request->hasFile('invoice_file')) {
+                $file = $request->file('invoice_file');
+                $filename = 'Invoice_' . str_pad($order->id, 6, '0', STR_PAD_LEFT) . '_' . time() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('invoices', $filename, 'public');
+                $order->invoice_attachment = $path;
+            }
+
+            $docPaths = [];
+            if ($request->hasFile('additional_documents')) {
+                foreach ($request->file('additional_documents') as $doc) {
+                    $docName = $doc->getClientOriginalName();
+                    $cleanName = pathinfo($docName, PATHINFO_FILENAME) . '_' . time() . '.' . $doc->getClientOriginalExtension();
+                    $docPath = $doc->storeAs('invoices/docs', $cleanName, 'public');
+                    $docPaths[] = [
+                        'name' => $docName,
+                        'path' => $docPath
+                    ];
+                }
+                $order->invoice_documents = $docPaths;
+            }
+
+            $order->status = 'Invoiced';
+            $order->save();
+
+            \App\Models\OrderApprovalLog::create([
+                'order_id' => $order->id,
+                'user_id' => $request->user()->id,
+                'action' => 'Invoiced',
+                'note' => "Supplier uploaded official invoice and associated documents."
+            ]);
+
+            $this->notifyCompanyBuyers($order, 'Invoiced');
+        });
+
+        return back()->with([
+            'flash_type' => 'success',
+            'flash_message' => "Invoice and supporting documents successfully uploaded! Buyer has been notified."
+        ]);
     }
 
     private function notifyCompanyBuyers(Order $order, string $status, ?string $reason = null)
     {
-        // Use whereHas instead of role() to avoid "Role not found" exceptions
         $buyers = \App\Models\User::where('company_id', $order->company_id)
             ->whereHas('roles', function($q) {
                 $q->whereIn('name', ['buyer', 'buyer_requester']);
@@ -327,8 +531,9 @@ class OrderController extends Controller
         }
 
         $message = match ($status) {
-            'Approved' => "Your order #{$order->id} has been approved and is awaiting quotation.",
+            'Approved' => "A quotation for order #{$order->id} is ready for your review.",
             'Quotation' => "A quotation for order #{$order->id} is ready for your review.",
+            'Partially Shipped' => "Order #{$order->id} has been partially shipped.",
             'Invoiced' => "An invoice has been generated for your order #{$order->id}.",
             'Shipped' => "Order #{$order->id} has been shipped and is on its way.",
             'Rejected' => "Order #{$order->id} has been rejected." . ($reason ? " Reason: {$reason}" : ""),

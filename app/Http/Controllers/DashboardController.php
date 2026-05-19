@@ -53,11 +53,12 @@ class DashboardController extends Controller
             ->toArray();
 
         $summary = [
-            // Aggregate internally hidden seller steps into initial RFQ bucket for buyer visibility
-            'RFQ' => ($statusCounts['RFQ'] ?? 0) + ($statusCounts['Submitted'] ?? 0) + ($statusCounts['Approved'] ?? 0),
-            'Quotation' => $statusCounts['Quotation'] ?? 0,
+            // RFQ represents the initial negotiation and workflow steps before pricing approval
+            'RFQ' => ($statusCounts['RFQ'] ?? 0) + ($statusCounts['Submitted'] ?? 0),
+            // Approved status is the supplier-approved Quotation phase awaiting buyer PO action
+            'Quotation' => ($statusCounts['Approved'] ?? 0) + ($statusCounts['Quotation'] ?? 0),
             // Aggregate order confirmation and shipping progress under official PO bucket
-            'PO' => ($statusCounts['PO'] ?? 0) + ($statusCounts['Invoiced'] ?? 0) + ($statusCounts['Shipped'] ?? 0),
+            'PO' => ($statusCounts['PO'] ?? 0) + ($statusCounts['Partially Shipped'] ?? 0) + ($statusCounts['Invoiced'] ?? 0) + ($statusCounts['Shipped'] ?? 0),
             'Completed' => $statusCounts['Completed'] ?? 0,
         ];
 
@@ -69,7 +70,11 @@ class DashboardController extends Controller
 
         if ($request->filled('status')) {
             if ($request->status === 'RFQ') {
-                $gridQuery->whereIn('status', ['RFQ', 'Submitted', 'Approved']);
+                $gridQuery->whereIn('status', ['RFQ', 'Submitted']);
+            } elseif ($request->status === 'Quotation') {
+                $gridQuery->whereIn('status', ['Approved', 'Quotation']);
+            } elseif ($request->status === 'PO') {
+                $gridQuery->whereIn('status', ['PO', 'Partially Shipped', 'Invoiced', 'Shipped']);
             } else {
                 $gridQuery->where('status', $request->status);
             }
@@ -81,7 +86,7 @@ class DashboardController extends Controller
             'orders' => $orders,
             'summary' => $summary,
             'filters' => $request->only(['month', 'status']),
-            'statuses' => ['RFQ', 'Quotation', 'PO', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
+            'statuses' => ['RFQ', 'Quotation', 'PO', 'Partially Shipped', 'Invoiced', 'Shipped', 'Completed', 'Rejected'],
         ]);
     }
 }
