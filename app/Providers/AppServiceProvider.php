@@ -24,6 +24,23 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
 
+        // Dynamically set APP_URL based on active request to support dynamic tunnels/domains
+        if (!app()->runningInConsole()) {
+            $rootUrl = request()->root();
+            config(['app.url' => $rootUrl]);
+            try {
+                cache()->forever('app_root_url', $rootUrl);
+            } catch (\Throwable $e) {}
+        } else {
+            // Fallback for console/queue context
+            try {
+                $cachedUrl = cache()->get('app_root_url');
+                if ($cachedUrl) {
+                    config(['app.url' => $cachedUrl]);
+                }
+            } catch (\Throwable $e) {}
+        }
+
         // Inject database application configuration overrides
         try {
             if (Schema::hasTable('app_settings')) {

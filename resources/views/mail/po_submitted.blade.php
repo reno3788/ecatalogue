@@ -139,7 +139,7 @@
                 <table class="email-content" cellpadding="0" cellspacing="0" role="presentation">
                     <tr>
                         <td class="email-masthead">
-                            <a href="{{ config('app.url') }}" class="email-masthead_name">
+                            <a href="{{ url('/') }}" class="email-masthead_name">
                                 {{ $settings->name ?? config('app.name') }}
                             </a>
                         </td>
@@ -189,7 +189,7 @@
                                             <table border="0" cellpadding="0" cellspacing="0" role="presentation">
                                                 <tr>
                                                     <td>
-                                                        <a href="{{ config('app.url') }}/admin/orders?open_order={{ $order->id }}" class="button"
+                                                        <a href="{{ url('/admin/orders?open_order=' . $order->id) }}" class="button"
                                                             target="_blank">View Order in Dashboard</a>
                                                     </td>
                                                 </tr>
